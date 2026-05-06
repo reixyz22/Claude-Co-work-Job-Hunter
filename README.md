@@ -30,11 +30,11 @@ Setup takes about ten minutes.
 
 ## How it works
 
-Two scheduled passes a day. The overnight pass searches your top-karma boards, scam-screens results, ranks leads, and builds tailored materials for the best one. The morning pass verifies every apply link, fills any gaps, computes your applied-tally, and writes the brief you read with coffee. Both passes read your `applied.md` and `ghost.md` first to skip anything you've already touched. Each board has a karma score that climbs when leads work out and drops when they're dead, so search budget follows what actually produces value for your specific city and role type.
+Two scheduled passes a day. The overnight pass searches your top-karma boards, scam-screens results, ranks leads, and builds tailored materials for the best one. The morning pass verifies every apply link, fills any gaps, computes your applied-tally, and writes the brief you read with coffee. Both passes read your `applied.md` and `ghost.md` first to skip anything you've already touched. Each job board has a karma score that climbs when leads work out and drops when they're dead, so search budget follows what actually produces value for your specific city and role type.
 
 ## Read before installing
 
-This plugin generates AI-written drafts. AI hallucinates. Cover letters and resume tailorings are templates, not finished documents — read every one before sending, especially the first ten or twenty while you learn how the model drifts on your background. The full disclaimer is in `skills/setup/references/disclaimers.md` and is the first thing setup reads to you.
+This plugin generates AI-written drafts. AI hallucinates. Cover letters and resume tailorings are templates, not finished documents — read every one before sending, especially the first ten or twenty while you learn how the model drifts on your background. The full disclaimer is in [`skills/setup/references/disclaimers.md`](https://github.com/reixyz22/Claude-Co-work-Job-Hunter/blob/main/skills/setup/references/disclaimers.md) and is the first thing setup reads to you.
 
 ## You're a participant, not a passenger
 
