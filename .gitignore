@@ -1,0 +1,25 @@
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Typst cache
+.typst-cache/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*~
+*.swp
+.vscode/
+.idea/
+
+# Build outputs (keep source .tex / .typ but not generated PDFs)
+assets/resume-template/resume.pdf
+
+# Packaged plugin (built artifact, not source)
+*.plugin

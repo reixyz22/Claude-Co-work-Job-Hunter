@@ -1,0 +1,33 @@
+{
+  "name": "reixyz22",
+  "owner": {
+    "name": "William Reixyz Pitts",
+    "url": "https://github.com/reixyz22"
+  },
+  "metadata": {
+    "description": "Plugins by William Reixyz Pitts",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "daily-job-hunter",
+      "source": ".",
+      "description": "Autonomous job-hunt pipeline with karma-based board learning. Two scheduled passes per day produce a verified ranked brief with apply links and tailored materials each morning.",
+      "version": "0.1.0",
+      "author": {
+        "name": "William Reixyz Pitts",
+        "url": "https://github.com/reixyz22"
+      },
+      "homepage": "https://github.com/reixyz22/daily-job-hunter",
+      "license": "MIT",
+      "keywords": [
+        "job-search",
+        "career",
+        "automation",
+        "scheduled-tasks",
+        "resume",
+        "cover-letter"
+      ]
+    }
+  ]
+}
