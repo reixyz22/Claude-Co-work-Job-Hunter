@@ -1,4 +1,4 @@
-# daily-job-hunter
+# Daily-Job-Hunter
 
 Most cold applications get ghosted, and the rest come with no feedback. You spend hours on aggregator sites that reshuffle dead listings, write the same cover letter from scratch over and over, and don't really know which boards are worth checking next time.
 
