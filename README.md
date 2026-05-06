@@ -9,7 +9,7 @@ It writes drafts. You ship them.
 ## Quick start
 
 1. Install the plugin in Cowork. Two ways:
-   - **From the marketplace** (recommended — gets you future updates): in Cowork chat, run `/plugin marketplace add github:reixyz22/daily-job-hunter` then `/plugin install daily-job-hunter`.
+   - **From the marketplace** (recommended — gets you future updates): in Cowork chat, run `/plugin marketplace add github:reixyz22/Claude-Co-work-Job-Hunter` then `/plugin install daily-job-hunter`.
    - **From a `.plugin` file** (one-time install): download `daily-job-hunter.plugin` from the latest GitHub release and drag it onto Cowork's chat.
 2. Run the `setup` skill. Claude will ask you for, in order:
    - A workspace folder (state files live there, on your computer, locally — nothing leaves)
