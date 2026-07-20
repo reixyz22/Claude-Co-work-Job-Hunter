@@ -1,4 +1,4 @@
-# daily-job-hunter
+# Daily-Job-Hunter
 
 Most cold applications get ghosted, and the rest come with no feedback. You spend hours on aggregator sites that reshuffle dead listings, write the same cover letter from scratch over and over, and don't really know which boards are worth checking next time.
 
@@ -6,12 +6,17 @@ This plugin handles the slog inside Claude Cowork: it finds live postings on the
 
 It writes drafts. You ship them.
 
+## Read before installing
+
+This plugin generates AI-written drafts. AI hallucinates. Cover letters and resume tailorings are templates, not finished documents — read every one before sending, especially the first ten or twenty while you learn how the model drifts on your background. The full disclaimer is in [`skills/setup/references/disclaimers.md`](https://github.com/reixyz22/Claude-Co-work-Job-Hunter/blob/main/skills/setup/references/disclaimers.md) and is the first thing setup reads to you.
+
 ## Quick start
 
-1. Install the plugin in Cowork. Two ways:
-   - **From the marketplace** (recommended — gets you future updates): in Cowork chat, run `/plugin marketplace add github:reixyz22/Claude-Co-work-Job-Hunter` then `/plugin install daily-job-hunter`.
-   - **From a `.plugin` file** (one-time install): download `daily-job-hunter.plugin` from the latest GitHub release and drag it onto Cowork's chat.
-2. Run the `setup` skill. Claude will ask you for, in order:
+1. Install the plugin in Cowork. daily-job-hunter.plugin file is in the sidebar under releases-- alternatively make the .plugin file yourself by creating a new .zip pasting in repo contents and renaming to 
+daily-job-hunter.plugin (.plugin is the file type)
+<img width="1322" height="1268" alt="image" src="https://github.com/user-attachments/assets/8cf5a89b-8b1e-472c-aa12-aeeaeaecb787" />
+
+2. Run the `setup` skill in a new chat with / . Claude will ask you for, in order:
    - A workspace folder (state files live there, on your computer, locally — nothing leaves)
    - Name, email, phone, city/state, work authorization, LinkedIn, GitHub (any of these can be skipped if you'd rather fill them in by hand later — note: no street address is collected, city/state is all resumes and geo-matching need)
    - Career stage, role focus, geography, remote tolerance
@@ -29,11 +34,9 @@ Setup takes about ten minutes.
 
 ## How it works
 
-Two scheduled passes a day. The overnight pass searches your top-karma boards, scam-screens results, ranks leads, and builds tailored materials for the best one. The morning pass verifies every apply link, fills any gaps, computes your applied-tally, and writes the brief you read with coffee. Both passes read your `applied.md` and `ghost.md` first to skip anything you've already touched. Each board has a karma score that climbs when leads work out and drops when they're dead, so search budget follows what actually produces value for your specific city and role type.
+Two scheduled passes a day. The overnight pass searches your top-karma boards, scam-screens results, ranks leads, and builds tailored materials for the best one. The morning pass verifies every apply link, fills any gaps, computes your applied-tally, and writes the brief you read with coffee. Both passes read your `applied.md` and `ghost.md` first to skip anything you've already touched. Each job board has a karma score that climbs when leads work out and drops when they're dead, so search budget follows what actually produces value for your specific city and role type.
 
-## Read before installing
 
-This plugin generates AI-written drafts. AI hallucinates. Cover letters and resume tailorings are templates, not finished documents — read every one before sending, especially the first ten or twenty while you learn how the model drifts on your background. The full disclaimer is in `skills/setup/references/disclaimers.md` and is the first thing setup reads to you.
 
 ## You're a participant, not a passenger
 
