@@ -1,6 +1,6 @@
 {
   "name": "daily-job-hunter",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Autonomous job-hunt pipeline. Two scheduled passes a day: overnight research and a verified morning brief. Karma-based source learning, ghost-tier dead-listing tracking, and personalized resume + cover letter drafts ready when you wake up.",
   "author": {
     "name": "William Reixyz Pitts",

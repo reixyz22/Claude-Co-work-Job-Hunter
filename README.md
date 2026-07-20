@@ -54,6 +54,8 @@ Five minutes of feedback per week is enough.
 - Ghost-burn tracking with three tiers (RED permanent / YELLOW 90 days / GREEN cooled-off)
 - Tailored resume, cover letter, and outreach drafts (with named recruiters when identifiable, never invented)
 - Salary-band calibration — a lead's comp gets read against winnability, not just ranked by number. High comp at a portal-hiring company without a concrete angle (referral, named contact, a JD line your shipped work directly answers) gets logged as a stretch instead of eating a top-3 slot
+- Optional email tracking (if you connect an email account like Gmail) — the morning pass reads your inbox for application confirmations and rejections and keeps `applied.md` current automatically, read-only, never touches anything else in your inbox
+- Optional email outreach drafts (same connector) — when a real named contact is found, a ready-to-send email is staged directly in your drafts folder alongside the markdown version. Draft only, always — the plugin never sends on your behalf, and if someone replies, that conversation is handed straight back to you
 - Frequency-tallied skill-gap log with concrete study paths (CodePath, Advent of Code, LeetCode, project ideas with expansion routes, language and Linux resources)
 - A `CLAUDE.md` template seeded with battle-tested job-hunt rules (resume tightness, JD-quote-verbatim, flex-skill strategy, recruiter-direct outreach play, scam patterns)
 - Autonomous mornings — fresh leads ready when you wake up
@@ -98,6 +100,8 @@ The Claude Pro plan ($20/month as of May 2026) is enough to run the full system 
 | `morning-brief` | Auto, weekday 6am   | Verify links, fill gaps, deliver the daily brief              |
 
 ## Changelog
+
+**0.2.0** — Added optional email-connector integration (e.g. Gmail via Cowork). When connected: the morning pass can search your inbox for application confirmations and rejections and keep `applied.md` current without manual copy-paste, and the nightly pass can stage a real outreach email as a draft in your account when a good named contact is found. Both capabilities are strictly read/draft-only — no send capability is ever used, and replies are never auto-answered. Entirely optional; the plugin works the same without it.
 
 **0.1.1** — Setup no longer asks for a street address, just city/state (or city/country) — resumes and geo-matching never needed more than that, and asking for it was a privacy overreach. Added salary-band calibration to the nightly research pass so high-comp leads get ranked by winnability, not just by the number.
 

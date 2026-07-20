@@ -56,6 +56,13 @@ The plugin never:
 
 It produces drafts. You ship them. If a future version of this plugin offers any kind of auto-send feature, it will be opt-in and clearly flagged.
 
+**If you connect an email account (e.g. Gmail) to Cowork,** the plugin can do two additional things, both bounded by the same rule above:
+
+- Stage a real outreach email as a draft sitting in your email account's drafts folder, ready for you to review and send yourself. It will never use a send capability even if the connector technically has one.
+- Read your inbox (search only, never send/reply/delete) to catch application confirmations and rejections you haven't manually reported, so `applied.md` stays current without you having to paste every email in by hand.
+
+Connecting an email account is entirely optional. Nothing in this plugin requires it — it just reduces manual bookkeeping if you choose to enable it. If a recruiter replies to a staged draft after you send it, the plugin will never draft or send a follow-up on your behalf — that conversation is yours from that point forward.
+
 ## 5. You're an active participant, not a passenger
 
 The system needs feedback from you to work. Two things:

@@ -28,6 +28,7 @@ Heavy research pass. Read in this order before any search:
   - **$120-160K at a named Series B+ company (portal-based hiring)** → context-dependent. Surface in top-3 only if there's a concrete angle: a specific portfolio match in the JD, a named person to cold-reach, or a relevant open-source contribution.
   - **$140K+ at an established brand with an ATS portal** → assume brutal filtering. Top-3 only with an ATS bypass (referral, direct recruiter contact, or a JD line the user's shipped work directly answers). Otherwise, log as "stretch" rather than padding the brief with low-probability applies.
   A high-comp lead without a concrete winnability angle is NOT a top-ranked lead. Honest odds read is more valuable to the user than an impressive-looking salary figure in the summary table.
+- **Draft, never send.** Any outreach email created through a connected email tool is a DRAFT, full stop — even if the connector exposes a send capability, do not use it. The user reviews and sends every outreach message themselves. If a recruiter or contact replies to a thread the user sent, do not draft or send a follow-up reply autonomously under any circumstance — flag the reply in the next brief and let the user take it from there. This is a hard boundary, not a judgment call.
 
 ## STEP 0 — Confirm read
 
@@ -93,6 +94,8 @@ Build full materials for the top-ranked lead. Save to `<workspace>/applications/
 - `apply-notes.md` — DIRECT APPLY LINK at top, what they want (quoting JD verbatim), why this fits the user, scam verdict, manual steps if any, FLEX skill flags.
 - `cover-letter.md` — user's voice, ~250 words, no AI-isms, reads `profile.md` for name and contact info.
 - `outreach-draft.md` — short LinkedIn DM or cold email targeting a real named person at the company (only if a real person was identified — do not invent recipients).
+
+**Email outreach draft (if an email tool is connected and a real address was found).** If the environment has an email-sending connector available (e.g. Gmail) and the outreach target is a cold email (not a LinkedIn DM) with a real, verifiable email address, stage the same content as an actual draft in the user's email account using the connector's draft-creation tool — never a send tool, even if one is technically available. This is in addition to `outreach-draft.md`, not a replacement for it. Keep the email brief and respectful: 3-5 sentences, one clear reason it's relevant to this specific person, no attachments unless the connector supports them and the user's profile explicitly authorized it. Note the draft's ID or location in `apply-notes.md` so `morning-brief` can point the user to it. Cap at ONE outreach draft per sweep — this is a precision play, not a volume play.
 - `resume.tex` (or `resume.md`) — tailored from `<workspace>/profile-resume.md` and the template at `assets/resume-template/`. Render to PDF.
 
 **Resume rendering — adaptive renderer.** Detect what is installed locally:

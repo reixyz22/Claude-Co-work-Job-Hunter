@@ -13,7 +13,7 @@
       "name": "daily-job-hunter",
       "source": ".",
       "description": "Autonomous job-hunt pipeline with karma-based board learning. Two scheduled passes per day produce a verified ranked brief with apply links and tailored materials each morning.",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "author": {
         "name": "William Reixyz Pitts",
         "url": "https://github.com/reixyz22"

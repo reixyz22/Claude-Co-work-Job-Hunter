@@ -28,6 +28,15 @@ For each lead from the nightly sweep, open the apply link in a browser (navigate
 
 Cap: ~5 browser actions per link. If verification drags beyond that, hand the URL to the user with a note and move on.
 
+## STEP 2.5 — Email tracking (only if an email connector is available)
+
+If the environment has a connected email tool (e.g. Gmail), use it to catch application confirmations and rejections the user hasn't manually reported yet:
+
+1. Search recent mail (last 24-48h covers a daily cadence) with a rotating keyword set — don't rely on a single term. Working starting set: `appl` (catches application/applying/applied), `reject`, `regret`, `unfortunately`, `interview`, `next steps`, `screener`, `take-home`, `moving forward with other candidates`. Widen this over time if the user reports a status update that the current keywords would have missed — log the miss and the fix in `pattern-signals.md` so the keyword set actually improves.
+2. Cross-reference hits against `applied.md`. A confirmation email for a company/role not already logged is a new entry — backfill it with the real applied date from the email, not today's date. A rejection or interview-invite email for an existing PENDING entry updates that entry's status directly (REJECTED / SCREENER) rather than waiting on any time-based auto-ghost rule.
+3. This step is READ-ONLY. Never reply, send, forward, or take any action on the inbox beyond searching and reading. If an email is ambiguous (might be a rejection, reads oddly, could be a scam), surface it in the brief instead of guessing at the status.
+4. If no email connector is available, skip this step silently — it is not a failure, just an unavailable capability.
+
 ## STEP 3 — Gap fill if nightly was thin
 
 If the nightly sweep produced fewer than 3 leads, run targeted supplemental searches to fill the gap. Different angles than nightly used — try Handshake-style entry-level boards, role-specific job boards (e.g. `gameindustryjobs.com` for a games-focused user), apprenticeship aggregators if the user is early-career.
@@ -77,7 +86,9 @@ One short paragraph, not a lecture. End with: "Take this in a separate Claude ch
 
 **4. Counts.** Verified leads / unverified leads / killed-since-nightly leads.
 
-**5. Top-lead pointer.** Path to `<workspace>/applications/<slug>-YYYY-MM-DD/` where `apply-notes.md`, `cover-letter.md`, `outreach-draft.md`, and the resume PDF are waiting. Note any FLEX skills the user should brush up on if a callback lands.
+**5. Top-lead pointer.** Path to `<workspace>/applications/<slug>-YYYY-MM-DD/` where `apply-notes.md`, `cover-letter.md`, `outreach-draft.md`, and the resume PDF are waiting. If an email outreach draft was staged in the user's email account (per `nightly` STEP 7), say so explicitly and point to it — "a draft is sitting in your email drafts folder, ready to review and send." Note any FLEX skills the user should brush up on if a callback lands.
+
+**5.5. Email tracking summary (if STEP 2.5 ran).** One or two lines: any new applied.md entries backfilled from confirmation emails, any statuses updated from rejection/interview emails, and any ambiguous emails that need the user's own read.
 
 **6. TODOs from nightly.** Missing profile fields, broken renders, anything that needs the user's attention before they can ship.
 
