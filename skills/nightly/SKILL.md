@@ -23,6 +23,11 @@ Heavy research pass. Read in this order before any search:
 - **Don't kill leads for partial fit.** A JD listing "5+ years" on a junior posting often means "we'll consider strong 1-3 year candidates." Note the gap, mark FLEX skills where bridgeable, surface the lead. Only kill when the missing piece is fundamental (senior staff role for someone with no work experience, specialty stack that takes months).
 - **Flex skill strategy (controlled exception to the no-fabricated-experience rule).** For skills the user could credibly study to working knowledge in 6-12 hours, list 1-2 max on the tailored resume to clear keyword filters. Mark FLEX in `apply-notes.md` with a "STUDY BEFORE THE SCREEN" section listing specific resources pulled from `skills-to-learn.md`. Two FLEX max per app — more is fiction.
 - **Skills-to-learn is a tally.** Each skill gets a frequency count incremented per occurrence in any JD. Surface as a study suggestion only when count >= 3 OR when the user has explicitly expressed interest in `profile.md`'s "Learning interest" section. One-off skill mentions stay logged but don't bubble up — they're noise until they recur.
+- **Salary ≠ winnability. Calibrate both before ranking.** High comp often signals high selectivity — ATS keyword filters, school pedigree screens, larger applicant pools. Use this working model when ranking leads:
+  - **$80-120K at a small startup (≤30 people, new-grad-ok, founder-accessible)** → realistic. Target band for most early-career users.
+  - **$120-160K at a named Series B+ company (portal-based hiring)** → context-dependent. Surface in top-3 only if there's a concrete angle: a specific portfolio match in the JD, a named person to cold-reach, or a relevant open-source contribution.
+  - **$140K+ at an established brand with an ATS portal** → assume brutal filtering. Top-3 only with an ATS bypass (referral, direct recruiter contact, or a JD line the user's shipped work directly answers). Otherwise, log as "stretch" rather than padding the brief with low-probability applies.
+  A high-comp lead without a concrete winnability angle is NOT a top-ranked lead. Honest odds read is more valuable to the user than an impressive-looking salary figure in the summary table.
 
 ## STEP 0 — Confirm read
 

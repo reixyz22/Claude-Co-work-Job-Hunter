@@ -29,7 +29,7 @@ Use AskUserQuestion (or the elicitation form widget if available) to collect ALL
 - Preferred name (if different — used in cover letter signatures)
 - Email
 - Phone (with country code)
-- Mailing address (street, city, state/province, country, postal code)
+- City and state (or city + country if outside the US) — used for cover-letter location lines and matching geo-filtered roles. Do NOT ask for a street address; modern resumes don't include one and it's a privacy overreach for this tool.
 - Work authorization (US citizen / permanent resident / requires visa / other — ask the user to specify)
 - Sponsorship needed (yes / no)
 - LinkedIn URL

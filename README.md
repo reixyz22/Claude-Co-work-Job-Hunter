@@ -13,7 +13,7 @@ It writes drafts. You ship them.
    - **From a `.plugin` file** (one-time install): download `daily-job-hunter.plugin` from the latest GitHub release and drag it onto Cowork's chat.
 2. Run the `setup` skill. Claude will ask you for, in order:
    - A workspace folder (state files live there, on your computer, locally — nothing leaves)
-   - Name, contact info, work authorization, LinkedIn, GitHub (any of these can be skipped if you'd rather fill them in by hand later)
+   - Name, email, phone, city/state, work authorization, LinkedIn, GitHub (any of these can be skipped if you'd rather fill them in by hand later — note: no street address is collected, city/state is all resumes and geo-matching need)
    - Career stage, role focus, geography, remote tolerance
    - Your best current resume (PDF or LaTeX)
    - One or more code folders for a read-only skills inventory
@@ -50,6 +50,7 @@ Five minutes of feedback per week is enough.
 - Boards with karma — the system learns which sources actually work for you
 - Ghost-burn tracking with three tiers (RED permanent / YELLOW 90 days / GREEN cooled-off)
 - Tailored resume, cover letter, and outreach drafts (with named recruiters when identifiable, never invented)
+- Salary-band calibration — a lead's comp gets read against winnability, not just ranked by number. High comp at a portal-hiring company without a concrete angle (referral, named contact, a JD line your shipped work directly answers) gets logged as a stretch instead of eating a top-3 slot
 - Frequency-tallied skill-gap log with concrete study paths (CodePath, Advent of Code, LeetCode, project ideas with expansion routes, language and Linux resources)
 - A `CLAUDE.md` template seeded with battle-tested job-hunt rules (resume tightness, JD-quote-verbatim, flex-skill strategy, recruiter-direct outreach play, scam patterns)
 - Autonomous mornings — fresh leads ready when you wake up
@@ -92,6 +93,12 @@ The Claude Pro plan ($20/month as of May 2026) is enough to run the full system 
 | `setup`         | Once, on install    | Onboarding wizard — disclaimers, profile, resume, code scan, schedule |
 | `nightly`       | Auto, weekday 1am   | Overnight research + materials for top lead                   |
 | `morning-brief` | Auto, weekday 6am   | Verify links, fill gaps, deliver the daily brief              |
+
+## Changelog
+
+**0.1.1** — Setup no longer asks for a street address, just city/state (or city/country) — resumes and geo-matching never needed more than that, and asking for it was a privacy overreach. Added salary-band calibration to the nightly research pass so high-comp leads get ranked by winnability, not just by the number.
+
+**0.1.0** — Initial release.
 
 ## Author
 

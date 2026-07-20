@@ -224,7 +224,7 @@ When a study path is suggested in the morning brief, include the SPECIFIC resour
 - Preferred name: <from setup>
 - Email: <from setup>
 - Phone: <from setup>
-- Address: <from setup>
+- Location: <from setup — city + state, or city + country if outside US>
 - LinkedIn: <from setup>
 - GitHub: <from setup>
 - Portfolio: <from setup>
