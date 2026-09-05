@@ -23,8 +23,20 @@ This plugin generates AI-written drafts. AI hallucinates. Resume tailorings and 
 
 ## Quick start
 
-1. Install the plugin in Cowork. daily-job-hunter.plugin file is in the sidebar under releases-- alternatively make the .plugin file yourself by creating a new .zip pasting in repo contents and renaming to 
-daily-job-hunter.plugin (.plugin is the file type)
+1. Get the `.plugin` file and install it in Cowork. Download it from [Releases](https://github.com/reixyz22/Claude-Co-work-Job-Hunter/releases), or build it yourself from a clone:
+
+   ```
+   git clone https://github.com/reixyz22/Claude-Co-work-Job-Hunter.git
+   cd Claude-Co-work-Job-Hunter
+   git archive --format=zip -o daily-job-hunter.plugin HEAD
+   ```
+
+   > **Don't use GitHub's "Download ZIP" button for this.** It wraps everything in a
+   > `Claude-Co-work-Job-Hunter-main/` folder, which puts `.claude-plugin/plugin.json` one level
+   > below the archive root, and the plugin then fails to load. `git archive` writes the files at
+   > the root, where the loader expects them — and it packs only tracked files, so your own
+   > workspace state can never end up inside a plugin you hand to someone else.
+
 <img width="1322" height="1268" alt="image" src="https://github.com/user-attachments/assets/8cf5a89b-8b1e-472c-aa12-aeeaeaecb787" />
 
 2. Run the `setup` skill in a new chat with / . Claude will ask you for, in order:
@@ -36,7 +48,7 @@ daily-job-hunter.plugin (.plugin is the file type)
    - Two to four projects you'd want to talk about in interviews
    - What you most want to learn next (shapes the skill-gap study suggestions)
    - Companies or industries to filter out (ethics seed)
-3. Confirm the scheduled tasks (default 1am + 6am local time, plus a 1pm inbox pass if you connect an email account).
+3. Confirm the scheduled tasks (default 1am + 6am local time, plus a 1pm inbox pass if you connect an email account, and an optional twice-weekly event sweep).
 4. Optionally do a dry-run preview.
 5. Tomorrow morning, read `morning-brief-YYYY-MM-DD.md` in your workspace.
 6. Tell Claude when you apply to a role and when you spot a scam — in your own words, no special syntax. The system depends on this; see "You're a participant" below.
@@ -52,6 +64,8 @@ Up to three scheduled passes a day.
 **Morning (6am)** verifies every apply link, runs a short freshness pass to catch anything posted overnight, computes your applied-tally, and writes the brief you read with coffee.
 
 **Midday (1pm, optional)** scans your inbox. Job-alert email reaches companies no board rotation queries, so it is a discovery channel in its own right — and it is the only channel that reports back on applications you already sent, which is what keeps `applied.md` from drifting out of date.
+
+**Twice weekly (`event-finder`, WIP)** looks for in-person events worth your time — hiring events with a published employer roster, user groups that meet inside company offices, hackathons — and ranks them by who is in the room rather than by how the event looks. It never registers you for anything.
 
 Every pass reads your `applied.md` and `ghost.md` first to skip anything you've already touched. Each source carries a karma score that climbs when leads work out and decays back toward neutral when they don't, and tiers (CORE / ROTATION / DORMANT / BLOCKED) keep a quiet week from burying a good board permanently.
 
@@ -120,6 +134,7 @@ The Claude Pro plan ($20/month as of May 2026) is enough to run the full system 
 ├── nightly-leads-YYYY-MM-DD.md    # overnight research handoff
 ├── morning-brief-YYYY-MM-DD.md    # daily output
 ├── email-check-YYYY-MM-DD-1pm.md  # midday inbox pass (if email connected)
+├── events.md                      # in-person event log, kills included (event-finder)
 └── applications/<slug>-YYYY-MM-DD/
     ├── apply-notes.md
     ├── outreach-draft.md
@@ -134,10 +149,11 @@ The Claude Pro plan ($20/month as of May 2026) is enough to run the full system 
 | `nightly`       | Auto, weekday 1am    | Overnight research + materials for top lead                   |
 | `morning-brief` | Auto, weekday 6am    | Verify links, fill gaps, deliver the daily brief              |
 | `email-check`   | Auto, weekday 1pm    | Inbox pass — mine job alerts, reconcile `applied.md` (needs an email connector) |
+| `event-finder`  | Auto, twice weekly   | **WIP** — in-person events ranked by who is in the room: hiring events, user groups, hackathons |
 
 ## Changelog
 
-**0.3.0** — Added the `email-check` skill: the midday inbox pass, previously run as an ad-hoc scheduled task, now ships as a documented skill. It mines job-alert email as a discovery channel and reconciles `applied.md` against real confirmations, rejections and interview invites. Two mandatory search passes (the second one deliberately includes Promotions, where alert digests are routinely classified and where a single-pass scan cannot see them), and a hard rule against asserting a negative from a result set that hit its page cap. Added `tools/board_poller`, a stdlib-only Python ATS poller with 18 offline unit tests. Discovery in `nightly` now runs three layers in parallel rather than treating any one as primary — the 2026-08 "poller-primary, web-search-supplement" framing starved the pipeline for two weeks and is retired. Cover letters dropped as an auto-generated deliverable. Board karma is now clamped and decays, with CORE/ROTATION/DORMANT/BLOCKED tiers so a dry week parks a source instead of burying it.
+**0.3.0** — Added the `event-finder` skill (**work in progress**): a twice-weekly sweep for in-person events, ranked by whether the hiring side is actually in the room and whether you can actually get in, with the kill log kept so later runs don't re-chase dead ends. The ranking model is settled; the per-city source registry is still hand-seeded. Fixed the install instructions — building the `.plugin` with GitHub's "Download ZIP" produces a wrapper folder that stops the plugin loading, so the README now uses `git archive`. Added the `email-check` skill: the midday inbox pass, previously run as an ad-hoc scheduled task, now ships as a documented skill. It mines job-alert email as a discovery channel and reconciles `applied.md` against real confirmations, rejections and interview invites. Two mandatory search passes (the second one deliberately includes Promotions, where alert digests are routinely classified and where a single-pass scan cannot see them), and a hard rule against asserting a negative from a result set that hit its page cap. Added `tools/board_poller`, a stdlib-only Python ATS poller with 18 offline unit tests. Discovery in `nightly` now runs three layers in parallel rather than treating any one as primary — the 2026-08 "poller-primary, web-search-supplement" framing starved the pipeline for two weeks and is retired. Cover letters dropped as an auto-generated deliverable. Board karma is now clamped and decays, with CORE/ROTATION/DORMANT/BLOCKED tiers so a dry week parks a source instead of burying it.
 
 **0.2.0** — Added optional email-connector integration (e.g. Gmail via Cowork). When connected: the pipeline can search your inbox for application confirmations and rejections and keep `applied.md` current without manual copy-paste, and the nightly pass can stage a real outreach email as a draft in your account when a good named contact is found. Both capabilities are strictly read/draft-only — no send capability is ever used, and replies are never auto-answered. Entirely optional; the plugin works the same without it.
 
