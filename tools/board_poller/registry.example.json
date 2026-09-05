@@ -1,0 +1,64 @@
+{
+  "_comment": [
+    "Example registry. Copy to registry.json and build up your own list.",
+    "registry.json is gitignored so your target-company list stays private.",
+    "Add entries with:  python3 poll_boards.py --add \"<filtered ATS url>\"",
+    "The --add command derives every field below from the URL, so in practice",
+    "you never hand-edit this file. It is documented here so you can read it."
+  ],
+
+  "boards": {
+    "example-workday": {
+      "ats": "workday",
+      "tenant": "acmecorp",
+      "host": "acmecorp.wd1.myworkdayjobs.com",
+      "board": "External",
+      "facets": {
+        "jobFamilyGroup": ["<facet-id-from-your-filtered-url>"],
+        "primaryLocation": ["<facet-id-from-your-filtered-url>"]
+      },
+      "search_text": "",
+      "source_url": "https://acmecorp.wd1.myworkdayjobs.com/External?jobFamilyGroup=...",
+      "added": "2026-01-01"
+    },
+
+    "example-greenhouse": {
+      "ats": "greenhouse",
+      "token": "acmecorp",
+      "source_url": "https://boards.greenhouse.io/acmecorp",
+      "added": "2026-01-01"
+    },
+
+    "example-lever": {
+      "ats": "lever",
+      "company": "acmecorp",
+      "source_url": "https://jobs.lever.co/acmecorp",
+      "added": "2026-01-01"
+    },
+
+    "example-ashby": {
+      "ats": "ashby",
+      "org": "acmecorp",
+      "source_url": "https://jobs.ashbyhq.com/acmecorp",
+      "added": "2026-01-01"
+    },
+
+    "example-ukg": {
+      "ats": "ukg",
+      "host": "recruiting.ultipro.com",
+      "tenant": "ACM1234ACME",
+      "board": "00000000-0000-0000-0000-000000000000",
+      "source_url": "https://recruiting.ultipro.com/ACM1234ACME/JobBoard/00000000-0000-0000-0000-000000000000/",
+      "added": "2026-01-01"
+    },
+
+    "example-icims-unsupported": {
+      "ats": "icims",
+      "url": "https://careers-acmecorp.icims.com/jobs/intro",
+      "unsupported": true,
+      "skip": true,
+      "_note": "iCIMS, Taleo and SuccessFactors have no public JSON API. Registered so it shows up in --list as a known gap; poll it by hand or add a headless-browser adapter.",
+      "added": "2026-01-01"
+    }
+  }
+}

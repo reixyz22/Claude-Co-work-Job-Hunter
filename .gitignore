@@ -23,3 +23,22 @@ assets/resume-template/resume.pdf
 
 # Packaged plugin (built artifact, not source)
 *.plugin
+
+# board_poller runtime state (personal target list + diff store)
+tools/board_poller/registry.json
+tools/board_poller/seen.json
+tools/board_poller/new-postings.json
+tools/board_poller/new-postings.md
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# board_poller scratch + local backups (personal target lists, not source)
+tools/board_poller/standing-postings.json
+tools/board_poller/standing-postings.md
+tools/board_poller/taleo-postings.md
+tools/board_poller/names_*.txt
+tools/board_poller/batch2_resolve.txt
+tools/board_poller/*.bak
+tools/board_poller/*.bak-*
