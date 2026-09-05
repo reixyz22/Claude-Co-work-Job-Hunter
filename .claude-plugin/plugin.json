@@ -1,7 +1,7 @@
 {
   "name": "daily-job-hunter",
-  "version": "0.2.0",
-  "description": "Autonomous job-hunt pipeline. Two scheduled passes a day: overnight research and a verified morning brief. Karma-based source learning, ghost-tier dead-listing tracking, and personalized resume + cover letter drafts ready when you wake up.",
+  "version": "0.3.0",
+  "description": "Autonomous job-hunt pipeline. Up to three scheduled passes a day: overnight research, a verified morning brief, and a midday inbox pass. Direct ATS polling, karma-tiered source learning, ghost-tier dead-listing tracking, and personalized resume + outreach drafts ready when you wake up.",
   "author": {
     "name": "William Reixyz Pitts",
     "url": "https://github.com/reixyz22"
@@ -14,7 +14,8 @@
     "automation",
     "scheduled-tasks",
     "resume",
-    "cover-letter"
+    "ats",
+    "python"
   ],
   "license": "MIT"
 }
