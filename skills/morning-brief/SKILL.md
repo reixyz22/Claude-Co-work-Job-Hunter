@@ -12,7 +12,7 @@ Light second-pass sweep. Read `<workspace>/profile.md` for context.
 1. `<workspace>/applied.md`
 2. `<workspace>/ghost.md`
 3. `<workspace>/pattern-signals.md` — read it back to yourself before any output.
-4. `<workspace>/boards.md` — note current karma + denylist.
+4. `<workspace>/boards.md` — note current karma + tiers (CORE/ROTATION/DORMANT/BLOCKED) + blocked domains.
 
 ## STEP 1 — Pick up where nightly left off
 
@@ -58,7 +58,7 @@ Per-lead `applied.md` check: if a company appears in `applied.md`, remove it fro
 
 - New entries to `posting-freshness.md` and `skills-to-learn.md`.
 - New permanent kills to `ghost.md`.
-- `GHOST BURN -5 to <board-of-origin>` events from STEP 2 to the `boards.md` event log. This is the only event `morning-brief` logs to boards.md — `nightly` handles USABLE LEAD / TOP RANKING / DRY SEARCH / NEW BOARD INDEXED, and the chat handler logs APPLIED / USER GHOST when the user reports them. See the karma taxonomy table in `nightly/SKILL.md` STEP 8 for the complete picture.
+- GHOST BURN events from STEP 2 (full -5 only for curated boards; INFRASTRUCTURE boards like Lever/Greenhouse/Ashby/Workday are capped at -2 for fast-closes and floored at 0) to the `boards.md` event log. This is the only event `morning-brief` logs to boards.md — `nightly` handles USABLE LEAD / TOP RANKING / DRY SEARCH / NEW BOARD INDEXED, and the chat handler logs APPLIED / USER GHOST when the user reports them. See the karma taxonomy table in `nightly/SKILL.md` STEP 8 for the complete picture.
 
 ## STEP 6 — Deliver the brief
 
@@ -86,7 +86,7 @@ One short paragraph, not a lecture. End with: "Take this in a separate Claude ch
 
 **4. Counts.** Verified leads / unverified leads / killed-since-nightly leads.
 
-**5. Top-lead pointer.** Path to `<workspace>/applications/<slug>-YYYY-MM-DD/` where `apply-notes.md`, `cover-letter.md`, `outreach-draft.md`, and the resume PDF are waiting. If an email outreach draft was staged in the user's email account (per `nightly` STEP 7), say so explicitly and point to it — "a draft is sitting in your email drafts folder, ready to review and send." Note any FLEX skills the user should brush up on if a callback lands.
+**5. Top-lead pointer.** Path to `<workspace>/applications/<slug>-YYYY-MM-DD/` where `apply-notes.md`, `apply-notes.md`, `outreach-draft.md`, and the resume PDF are waiting (no cover letter is generated; apply-notes carries an outline if the role needs one). If an email outreach draft was staged in the user's email account (per `nightly` STEP 7), say so explicitly and point to it — "a draft is sitting in your email drafts folder, ready to review and send." Note any FLEX skills the user should brush up on if a callback lands.
 
 **5.5. Email tracking summary (if STEP 2.5 ran).** One or two lines: any new applied.md entries backfilled from confirmation emails, any statuses updated from rejection/interview emails, and any ambiguous emails that need the user's own read.
 
@@ -99,3 +99,17 @@ One short paragraph, not a lecture. End with: "Take this in a separate Claude ch
 **9. Footer.** Closing line pointing the user to past briefs: "Past briefs are saved as `morning-brief-YYYY-MM-DD.md` in your workspace folder — open it in any file browser to revisit prior days." Useful when they miss a day, want to check back on a lead they meant to apply to, or look up something from last week.
 
 The brief is what the user wakes up to. It is the user-facing artifact for the day. Clean prose, signal-rich paragraphs, honest about confidence, occasionally encouraging but never saccharine.
+---
+## Direction update (2026-08)
+
+- **Cover letters: DROPPED as an auto-generated deliverable.** Most roles do not require one. When a role requires a cover letter, provide ONLY a short structural outline plus one or two lines of angle/inspiration; the user writes it in their own voice. Do not generate full cover letters.
+- **Discovery prefers PUSH over PULL.** Native job alerts (Greenhouse/MyGreenhouse, EarnBetter, Handshake, LinkedIn) ingested via the daily email-check task are the primary funnel. For the user's target companies, poll their OWN ATS board APIs directly (Greenhouse boards-api, Lever v0 postings, Ashby) — reliable and real-time — rather than relying on aggregator search. Aggregator/Exa search is a supplement for discovering NEW companies. See tools/board_poller.
+- **Karma: keep the guardrails, retire board-ranking-by-search.** Keep applied/ghost kill-checks, the stale-mirror denylist, and the ethics/experience/location/freshness filters. Stop gating discovery on noisy per-sweep board karma; weight sources by whether they actually produce applied-to leads.
+- **Learning as SMART goals in the brief.** Instead of a separate skills-to-learn file the user ignores, surface ONE SMART learning goal per brief driven by AGGREGATE skill demand across recent postings (the skills that recur most, plus high-value ones like Unreal/C++/C#/Kubernetes) rather than pinned to a single lead. Time-box it (~6h) and make it Specific/Measurable/Achievable/Relevant/Time-bound.
+---
+## 6am discovery — verify nightly's leads, then a SHORT fresh pass (load split with 1am)
+The 1am sweep does the heavy A+B+C search (see nightly STEP 1). 6am's job is verification + delivery PLUS a light freshness pass to catch anything posted overnight:
+
+1. `poll_boards.py --run` (real-time diff since 1am). If dry (0/0), `poll_boards.py --standing` → `standing-postings.md` (all open registered-board leads minus applied/ghost). The poller is layer A — registered boards only.
+2. Run 2-3 LOCATION-FIRST web searches for anything posted in the last ~12-24h ("junior/entry SWE {metro} posted today", plus the user's other target role-types). This is the layer that catches fresh roles at unregistered companies (a same-day Capgemini-type junior role) — do NOT skip it just because the poller ran. `--add` any good new company.
+3. Merge with nightly's leads, dedupe, freshness-sort (hours-old first), then per-lead applied/ghost kill-check + scam-screen + ethics + rank.

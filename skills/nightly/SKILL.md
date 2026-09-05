@@ -1,6 +1,6 @@
 ---
 name: nightly
-description: Overnight job-research sweep. Searches the user's top-karma boards, scam-screens results, ranks leads, and builds tailored materials for the best one. Runs unattended via scheduled task at 1am local time on weekdays. Not normally invoked manually.
+description: Overnight job-research sweep. Polls the user's registered ATS boards directly (board_poller) as the primary source, supplements with web search for new companies, scam-screens, ranks, and builds tailored materials for the best lead. Runs unattended via scheduled task at 1am local time on weekdays. Not normally invoked manually.
 ---
 
 # Nightly research sweep
@@ -10,12 +10,12 @@ Heavy research pass. Read in this order before any search:
 1. `<workspace>/CLAUDE.md` — standing rules (materials standards, flex strategy, outreach play, scam patterns) and the user's project memory
 2. `<workspace>/profile.md` — identity, contact, work authorization, targeting, learning interest
 3. `<workspace>/profile-resume.md` — what's on the user's resume
-4. `<workspace>/profile-projects.md` — interview-worthy projects in the user's own words (primary input for cover letters)
+4. `<workspace>/profile-projects.md` — interview-worthy projects in the user's own words (primary input for materials)
 5. `<workspace>/skills-inventory.md` — what the user's code actually shows they can do
 6. `<workspace>/applied.md` — kill list. Companies here do not get re-suggested. EXCEPTION: entries older than 12 months from their applied date are no longer hard kills — job postings turn over annually, and a role applied to last cycle may be worth re-applying for this cycle. Surface these leads in the brief with a note: "applied <date> last cycle — may be worth re-applying."
 7. `<workspace>/ghost.md` — RED = permanent skip; YELLOW within 3 months = skip; GREEN = ATS verify before resurfacing. At the start of the sweep, prune YELLOW entries older than 3 months → GREEN.
 8. `<workspace>/pattern-signals.md` — the user's engagement signals shape what counts as a good fit.
-9. `<workspace>/boards.md` — recompute the karma table from the event log if needed. Identify the TOP 5 boards by karma. Note the domain denylist and the "what counts as a board" rule.
+9. `<workspace>/boards.md` — KARMA + TIERS. Karma scores sources (APPLIED +10, INTERVIEW +15, USABLE +2, TOP RANKING +1, GHOST BURN -3 curated / -1 infra, BLOCKED-HIT -5, DRY -1 only if a peer produced that sweep). Karma is CLAMPED to -5..+30 and decays 1/week toward 0, so nothing runs away or stays buried. Tiers are the guardrail: CORE (+8up, every sweep, floor +5 — never demoted by dry nights alone), ROTATION (0..+7, 2-3 round-robin per sweep), DORMANT (<0, parked NOT dead — retry >=1 per sweep, each monthly; one usable lead returns it to ROTATION), BLOCKED (permanent, documented relisters only). A user opinion about a category is a NOTE on the source, never a karma hit.
 
 ## Operating principles (apply throughout this skill)
 
@@ -36,17 +36,21 @@ You should have already read all 9 files listed above. If any are missing (e.g.,
 
 ## STEP 1 — Search
 
-Run EXACTLY 5 parallel web searches (Exa or equivalent), one per top-5 board. Each query natural-language and source-biased. Examples (substitute the actual top-5 boards in `boards.md`):
+Run all three layers below IN PARALLEL. They catch different things — breadth is the point, and no single layer is "primary." A dry result from one is normal; the others cover it.
 
-- YC: "junior or new grad software engineer postings on Y Combinator companies job board"
-- Ashby: "new grad software engineer roles on jobs.ashbyhq.com"
-- Wellfound: "junior software engineer startup roles on wellfound.com"
-- Greenhouse direct: "junior software engineer entry level openings on boards.greenhouse.io"
-- Lever direct: "entry level software engineer roles on jobs.lever.co"
+**A — Poller (registered boards, real-time, zero-token).** `poll_boards.py --run`, read new-postings.md. If it's dry (0 junior AND 0 watch — common), `poll_boards.py --standing`, read standing-postings.md (all open registered-board leads minus applied/ghost). This is structured inventory from the boards already in the registry.
 
-`numResults`: 10 per query.
+**B — Broad web search (Exa, 5-8 parallel, numResults 10).** This is the original engine and it finds roles at companies NOT in the registry. Two flavors, run both:
+- *Source-biased* — one per top board in `boards.md`: e.g. "new grad software engineer roles on jobs.ashbyhq.com", "junior software engineer entry level on boards.greenhouse.io", "entry level SWE on jobs.lever.co", "junior/new grad SWE on Y Combinator jobs".
+- *Location-first* — the highest-value queries; they catch fresh roles the registry can't see (this is how a 2-hour-old Capgemini junior role surfaces): "junior OR entry-level software engineer jobs {metro/state} posted this week", plus one per target role-type in `profile.md` (IT / QA / analyst / solutions engineer / new grad). Include a "posted this week / past 24 hours" freshness cue.
 
-If the karma table is fresh (less than 7 days of sweep history) and most boards sit at karma 0, treat the top-5 as a starting heuristic only — early sweeps are calibration runs, not high-confidence runs. Surface that in the brief if results are thin.
+`query-terms.md` (if present) holds reusable location + NEGATIVE clauses — use them, but a plain location-first query stands on its own. Do NOT gate the search behind that file's machinery.
+
+**C — Feed the registry.** Any good NEW company found in B: `poll_boards.py --add "<ATS careers URL>"` so it self-polls in layer A next time. (SuccessFactors / iCIMS / Taleo boards can't be polled — just apply directly and note it.)
+
+Merge all three, dedupe, freshness-sort (hours-old first). If the karma table is fresh (<7 days history), treat board ranking as a loose heuristic only.
+
+**Load split (1am vs 6am):** 1am runs the full A+B+C (heavy). 6am re-runs the poller + a SHORT location-first freshness pass (2-3 queries) to catch anything posted overnight, then verifies + delivers. Tokens are ample across two runs — favor breadth over cutting searches.
 
 ## STEP 2 — Post-filter
 
@@ -92,7 +96,7 @@ If zero leads survive: that is a valid output. Write a brief that says so and ex
 Build full materials for the top-ranked lead. Save to `<workspace>/applications/<slug>-YYYY-MM-DD/`:
 
 - `apply-notes.md` — DIRECT APPLY LINK at top, what they want (quoting JD verbatim), why this fits the user, scam verdict, manual steps if any, FLEX skill flags.
-- `cover-letter.md` — user's voice, ~250 words, no AI-isms, reads `profile.md` for name and contact info.
+- NO cover letter is generated. If the role requires one, put a short structural outline plus 1-2 lines of angle into `apply-notes.md`; the user writes it in their own voice.
 - `outreach-draft.md` — short LinkedIn DM or cold email targeting a real named person at the company (only if a real person was identified — do not invent recipients).
 
 **Email outreach draft (if an email tool is connected and a real address was found).** If the environment has an email-sending connector available (e.g. Gmail) and the outreach target is a cold email (not a LinkedIn DM) with a real, verifiable email address, stage the same content as an actual draft in the user's email account using the connector's draft-creation tool — never a send tool, even if one is technically available. This is in addition to `outreach-draft.md`, not a replacement for it. Keep the email brief and respectful: 3-5 sentences, one clear reason it's relevant to this specific person, no attachments unless the connector supports them and the user's profile explicitly authorized it. Note the draft's ID or location in `apply-notes.md` so `morning-brief` can point the user to it. Cap at ONE outreach draft per sweep — this is a precision play, not a volume play.
@@ -112,7 +116,7 @@ Build full materials for the top-ranked lead. Save to `<workspace>/applications/
 
 If any check fails, edit and re-render. Never deliver a clipped resume.
 
-**Personal info:** every cover letter and resume MUST read `profile.md` and use the user's actual name, email, phone, etc. Never emit `[user]`, `[your name]`, `[email]` placeholders. If a needed profile field is missing, leave a clearly-marked TODO in the document and flag it in the morning brief.
+**Personal info:** every resume and outreach draft MUST read `profile.md` and use the user's actual name, email, phone, etc. Never emit `[user]`, `[your name]`, `[email]` placeholders. If a needed profile field is missing, leave a clearly-marked TODO in the document and flag it in the morning brief.
 
 ## STEP 8 — Karma updates
 
@@ -156,3 +160,19 @@ For any skill that has crossed the cumulative threshold and does not yet have a 
 ## STEP 11 — Hand-off
 
 Save the night's lead writeups to `<workspace>/nightly-leads-YYYY-MM-DD.md`. The `morning-brief` skill reads this file in a few hours, verifies the links, and produces the brief the user actually wakes up to.
+---
+## Direction update (2026-08)
+
+- **Cover letters: DROPPED as an auto-generated deliverable.** Most roles do not require one. When a role requires a cover letter, provide ONLY a short structural outline plus one or two lines of angle/inspiration; the user writes it in their own voice. Do not generate full cover letters.
+- **Discovery uses ALL channels in parallel — breadth wins.** Three complementary layers, none is "primary" (see STEP 1): (1) native job alerts (Greenhouse/MyGreenhouse, EarnBetter, Handshake, LinkedIn) via the email-check task; (2) direct ATS polling of registered target companies (board_poller — reliable, real-time, zero-token); (3) broad + location-first web search (Exa) which is the ONLY layer that finds fresh roles at companies not yet registered (e.g. a same-day Capgemini junior role). A quiet result from one layer does not mean the market is quiet — run the others. Do not demote web search; the 2026-08 "poller-primary, Exa-supplement" framing starved the pipeline for ~2 weeks and is retired.
+- **Karma: keep the guardrails, retire board-ranking-by-search.** Keep applied/ghost kill-checks, the stale-mirror denylist, and the ethics/experience/location/freshness filters. Stop gating discovery on noisy per-sweep board karma; weight sources by whether they actually produce applied-to leads.
+- **Learning as SMART goals in the brief.** Instead of a separate skills-to-learn file the user ignores, surface ONE SMART learning goal per brief driven by AGGREGATE skill demand across recent postings (the skills that recur most, plus high-value ones like Unreal/C++/C#/Kubernetes) rather than pinned to a single lead. Time-box it (~6h) and make it Specific/Measurable/Achievable/Relevant/Time-bound.
+---
+## board_poller — how to run layer A (see STEP 1 for how it fits with web search)
+The poller is ONE of the three search layers (STEP 1, layer A), not a replacement for web search. It polls registered ATS boards directly (Greenhouse/Lever/Ashby/Workday/SmartRecruiters/Workable, plus JazzHR/custom via HTML fallback), applies seniority + location + role filters in Python, tags YoE (`[needs Nyr]`), and is zero-token.
+
+- `poll_boards.py --run` → `new-postings.md`: postings NEW since the last run (real-time diff).
+- If that's dry (0 junior AND 0 watch — common on a slow registry), `poll_boards.py --standing` → `standing-postings.md`: EVERY currently-open registered-board junior/watch lead, minus applied.md/ghost.md (auto-excluded by company name). A dry `--run` is normal; `--standing` is its companion, not a failure signal.
+- `poll_boards.py --add "<careers URL>"` registers a new company found via web search so it self-polls next time.
+
+Layer A gives structured, real-time coverage of the boards you already track. It does NOT see companies outside the registry — that's what the broad + location-first web searches in STEP 1 layer B are for. Run both; freshness-sort together.

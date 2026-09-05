@@ -28,7 +28,7 @@ This file is read at the start of every nightly and morning-brief sweep. It capt
 
 - **Resume is one page, hard.** Past failures: 1.1-page renders shipped to recruiters look amateur. Cut ruthlessly. Stretch claims stay only when role genuinely demands them.
 - **JD quote verbatim.** When writing the "what they want" section of `apply-notes.md`, quote the JD's actual language. Do not add languages, frameworks, or skills the JD doesn't list. If JD says "C# or Java," do not add Python.
-- **No AI-vibe prose.** Cover letter bullets are punchy and concrete. Avoid: "I am a passionate software engineer with a strong interest in...", "Leveraging my expertise to drive impactful solutions," any sentence the user wouldn't say out loud. Voice should be direct, slightly informal, factual.
+- **No AI-vibe prose.** Resume bullets are punchy and concrete. Avoid: "I am a passionate software engineer with a strong interest in...", "Leveraging my expertise to drive impactful solutions," any sentence the user wouldn't say out loud. Voice should be direct, slightly informal, factual.
 - **No fabricated experience.** `skills-inventory.md` is the source of truth. The resume can't claim skills the user can't credibly back. Aspirational skills go to `skills-to-learn.md`, not the resume. Flex strategy is the controlled exception.
 - **Inference rules for unstated skills.** Don't make the user spell out everything. Reasonable inferences:
   - University CS programs usually involve Java (CS101 typically) — count as real Java exposure
@@ -111,7 +111,7 @@ Two exceptions:
 
 ## 8. Don't pull in context the user didn't invite
 
-Cover letters and resume tailorings use ONLY: `profile.md`, `profile-resume.md`, `profile-projects.md`, `skills-inventory.md`, this file (`CLAUDE.md`), and the JD. Nothing else.
+Resume tailorings and outreach use ONLY: `profile.md`, `profile-resume.md`, `profile-projects.md`, `skills-inventory.md`, this file (`CLAUDE.md`), and the JD. Nothing else.
 
 No biographical color the user did not put in their profile. No emotional framing. The user is the editor of their own narrative.
 
@@ -146,3 +146,10 @@ Patterns get added by the user (via chat: "remember that I don't apply to X") OR
 
 (no entries yet — this section grows organically as the system learns the user)
 ```
+---
+## Direction update (2026-08)
+
+- **Cover letters: DROPPED as an auto-generated deliverable.** Most roles do not require one. When a role requires a cover letter, provide ONLY a short structural outline plus one or two lines of angle/inspiration; the user writes it in their own voice. Do not generate full cover letters.
+- **Discovery prefers PUSH over PULL.** Native job alerts (Greenhouse/MyGreenhouse, EarnBetter, Handshake, LinkedIn) ingested via the daily email-check task are the primary funnel. For the user's target companies, poll their OWN ATS board APIs directly (Greenhouse boards-api, Lever v0 postings, Ashby) — reliable and real-time — rather than relying on aggregator search. Aggregator/Exa search is a supplement for discovering NEW companies. See tools/board_poller.
+- **Karma: keep the guardrails, retire board-ranking-by-search.** Keep applied/ghost kill-checks, the stale-mirror denylist, and the ethics/experience/location/freshness filters. Stop gating discovery on noisy per-sweep board karma; weight sources by whether they actually produce applied-to leads.
+- **Learning as SMART goals in the brief.** Instead of a separate skills-to-learn file the user ignores, surface ONE SMART learning goal per brief driven by AGGREGATE skill demand across recent postings (the skills that recur most, plus high-value ones like Unreal/C++/C#/Kubernetes) rather than pinned to a single lead. Time-box it (~6h) and make it Specific/Measurable/Achievable/Relevant/Time-bound.
