@@ -71,13 +71,13 @@ Every pass reads your `applied.md` and `ghost.md` first to skip anything you've 
 
 ## board_poller — direct ATS polling, zero tokens
 
-`tools/board_poller/` is a stdlib-only Python tool (no `pip install`) that polls company ATS boards directly — Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Workable, plus an HTML fallback — and reports only what is **new** since the last run.
+`tools/board_poller/` is a stdlib-only Python tool (no `pip install`) that polls company ATS boards directly — Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Workable, Rippling, plus an HTML fallback — and reports only what is **new** since the last run.
 
 ```
 python3 poll_boards.py --add "<your filtered ATS careers URL>"   # register a company
 python3 poll_boards.py --run                                     # diff since last run
 python3 poll_boards.py --standing                                # everything currently open
-python3 -m unittest test_poll_boards                             # 18 offline unit tests
+python3 -m unittest test_poll_boards                             # 22 offline unit tests
 ```
 
 The keyword filter is the small half of it. The **diff** is the point: `seen.json` remembers every posting ID ever fetched, so each run surfaces only what appeared since last time — which is how a posting a few hours old gets caught, the strongest ranking signal the pipeline has.
