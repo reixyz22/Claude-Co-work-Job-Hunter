@@ -13,7 +13,7 @@
       "name": "daily-job-hunter",
       "source": ".",
       "description": "Autonomous job-hunt pipeline with karma-tiered board learning and direct ATS polling. Up to three scheduled passes per day produce a verified ranked brief with apply links and tailored materials.",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "author": {
         "name": "William Reixyz Pitts",
         "url": "https://github.com/reixyz22"

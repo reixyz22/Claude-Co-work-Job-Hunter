@@ -115,6 +115,12 @@ Overnight (default 1am local) does the research. Morning (default 6am local) doe
 
 The Claude Pro plan ($20/month as of May 2026) is enough to run the full system comfortably. The free tier's daily token limit will hit before the morning brief completes.
 
+**The binding constraint on search volume is the context window, not your token allowance.** Each web-search call returns roughly 7,000 tokens of result text that then sits in the session for the rest of the run, so a sweep that fires 50 searches inline spends most of its window on raw results and has nothing left for verification and write-up. It does not fail loudly; it degrades, re-serving stale leads and mis-ranking.
+
+The sweeps handle this by running searches in **subagent batches** — 5-8 queries per subagent, `numResults: 5`, and the subagent returns only a compact survivor list (employer, role, verbatim experience requirement, employer ATS link, dated provenance, and which query found it). The raw result text is spent in the subagent's context and never enters the parent sweep's. That is what makes a 40-50 query sweep reachable without quality loss. Full protocol in `skills/nightly/SKILL.md` STEP 1.
+
+If a sweep under-delivers on query count, it should name which resource actually ran out. Rate limit, token budget and context window are three different failures with three different fixes, and reporting one as another sends you looking in the wrong place.
+
 ## Files the plugin writes to your workspace
 
 ```
@@ -152,6 +158,8 @@ The Claude Pro plan ($20/month as of May 2026) is enough to run the full system 
 | `event-finder`  | Auto, twice weekly   | **WIP** — in-person events ranked by who is in the room: hiring events, user groups, hackathons |
 
 ## Changelog
+
+**0.3.1** — Search now runs in **subagent batches** (5-8 queries per subagent, `numResults: 5`), with the subagent returning only a compact survivor list and the raw result text never entering the parent sweep's context. The problem this fixes: each search call returns ~7,000 tokens that persist for the rest of a run, so an inline 40-50 query sweep spent its whole window on raw results and then degraded quietly — re-serving stale leads and mis-ranking — while reporting the shortfall as a token or rate limit. It was neither; it was the context window, and the three are now documented as distinct failures a sweep must tell apart before reporting one. Subagents return findings only and never rank, never decide, and never write to tracking files; their returns are not kill-checked against `applied.md` / `ghost.md`, so the parent sweep still runs that itself. Query load is now split across the nightly and morning runs (20-25 each) instead of the morning run doing a token freshness pass, and both runs report their real query count.
 
 **0.3.0** — Added the `event-finder` skill (**work in progress**): a twice-weekly sweep for in-person events, ranked by whether the hiring side is actually in the room and whether you can actually get in, with the kill log kept so later runs don't re-chase dead ends. The ranking model is settled; the per-city source registry is still hand-seeded. Fixed the install instructions — building the `.plugin` with GitHub's "Download ZIP" produces a wrapper folder that stops the plugin loading, so the README now uses `git archive`. Added the `email-check` skill: the midday inbox pass, previously run as an ad-hoc scheduled task, now ships as a documented skill. It mines job-alert email as a discovery channel and reconciles `applied.md` against real confirmations, rejections and interview invites. Two mandatory search passes (the second one deliberately includes Promotions, where alert digests are routinely classified and where a single-pass scan cannot see them), and a hard rule against asserting a negative from a result set that hit its page cap. Added `tools/board_poller`, a stdlib-only Python ATS poller with 18 offline unit tests. Discovery in `nightly` now runs three layers in parallel rather than treating any one as primary — the 2026-08 "poller-primary, web-search-supplement" framing starved the pipeline for two weeks and is retired. Cover letters dropped as an auto-generated deliverable. Board karma is now clamped and decays, with CORE/ROTATION/DORMANT/BLOCKED tiers so a dry week parks a source instead of burying it.
 

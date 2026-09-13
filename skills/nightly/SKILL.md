@@ -40,7 +40,7 @@ Run all three layers below IN PARALLEL. They catch different things — breadth 
 
 **A — Poller (registered boards, real-time, zero-token).** `poll_boards.py --run`, read new-postings.md. If it's dry (0 junior AND 0 watch — common), `poll_boards.py --standing`, read standing-postings.md (all open registered-board leads minus applied/ghost). This is structured inventory from the boards already in the registry.
 
-**B — Broad web search (Exa, 5-8 parallel, numResults 10).** This is the original engine and it finds roles at companies NOT in the registry. Two flavors, run both:
+**B — Broad web search (Exa, run in SUBAGENT BATCHES — see the protocol below, numResults 5).** This is the original engine and it finds roles at companies NOT in the registry. Two flavors, run both:
 - *Source-biased* — one per top board in `boards.md`: e.g. "new grad software engineer roles on jobs.ashbyhq.com", "junior software engineer entry level on boards.greenhouse.io", "entry level SWE on jobs.lever.co", "junior/new grad SWE on Y Combinator jobs".
 - *Location-first* — the highest-value queries; they catch fresh roles the registry can't see (this is how a 2-hour-old Capgemini junior role surfaces): "junior OR entry-level software engineer jobs {metro/state} posted this week", plus one per target role-type in `profile.md` (IT / QA / analyst / solutions engineer / new grad). Include a "posted this week / past 24 hours" freshness cue.
 
@@ -50,7 +50,37 @@ Run all three layers below IN PARALLEL. They catch different things — breadth 
 
 Merge all three, dedupe, freshness-sort (hours-old first). If the karma table is fresh (<7 days history), treat board ranking as a loose heuristic only.
 
-**Load split (1am vs 6am):** 1am runs the full A+B+C (heavy). 6am re-runs the poller + a SHORT location-first freshness pass (2-3 queries) to catch anything posted overnight, then verifies + delivers. Tokens are ample across two runs — favor breadth over cutting searches.
+### THE SUBAGENT BATCH PROTOCOL — how to run 40-50 queries without degrading
+
+**The constraint on query volume is the CONTEXT WINDOW, not a token budget or a rate limit.** Each web-search call returns roughly 7,000 tokens of result text, and in a single-session sweep that text stays in context for the rest of the run. Fifty calls is ~350K tokens of raw results before a single JD fetch, file read, verification or write-up. The sweep does not run out of money — it runs out of room, and a sweep that is out of room starts re-serving stale leads and mis-ranking.
+
+**Diagnose before you report.** "Rate limit," "token budget" and "context window" are three different failures with three different fixes. Never report one as another. If a run under-delivers on query count, say which resource actually ran out.
+
+**The fix is to keep raw results out of the parent sweep's context:**
+
+1. **Batch queries into subagents.** Send 5-8 queries per subagent. The subagent spends *its own* context on the raw result text and returns only a compact survivor list. This is the change that actually makes 40-50 reachable, because the parent's context cost per batch becomes roughly constant instead of linear in query count.
+2. **`numResults: 5`, not 10.** Halves per-call cost at almost no loss — survivors are rarely in results 6-10.
+3. **Split the query blocks across the two runs** (below) so neither carries the whole ledger.
+
+**What each subagent must return — nothing more:**
+
+- Employer name, role title, location, comp if stated.
+- The **stated experience requirement, quoted verbatim** from the requirements body.
+- The **employer's own ATS/careers URL** where available, never an aggregator link.
+- The **posting date and where that date came from** (employer ATS vs. third party).
+- **Which query found it** — attribution is mandatory; the ranked-query ledger is unusable without it.
+- A one-line reason for every kill (denylist domain, location, experience gate, ethics, already-applied).
+
+**What a subagent must NOT do:** rank leads, write materials, decide what the user applies to, or write to any tracking file. It returns findings; the parent sweep judges them. Ranking needs the full state of the run and a subagent does not have it.
+
+**Cross-check the returns against the kill files yourself.** A subagent does not carry `applied.md` / `ghost.md` state, so a survivor it hands back is a *candidate*, not a cleared lead. Run the per-lead kill check in STEP 3 on everything that comes back.
+
+**Load split across the two runs.** Target 20-25 queries per run, 40-50 across the pair, and **report the real number every sweep — do not round up.**
+
+- **Nightly run:** the always-on query blocks plus the highest-scoring unproven ones, and 5+ exploration queries. Discovery-heavy. Full A+B+C.
+- **Morning run:** the remaining query blocks, then link verification and delivery. Verification-heavy. Re-run the poller plus a short location-first freshness pass to catch anything posted overnight.
+
+Both runs increment query run counters. Breadth is the point — if something has to give, cut result *depth* (numResults) or move a block to the other run, never the query count.
 
 ## STEP 2 — Post-filter
 
