@@ -125,12 +125,20 @@ If zero leads survive: that is a valid output. Write a brief that says so and ex
 
 Build full materials for the top-ranked lead. Save to `<workspace>/applications/<slug>-YYYY-MM-DD/`:
 
-- `apply-notes.md` — DIRECT APPLY LINK at top, what they want (quoting JD verbatim), why this fits the user, scam verdict, manual steps if any, FLEX skill flags.
+- **`jd.md` — the posting's body text, captured verbatim. Write this FIRST, before any other artifact.** Header it with capture date, the employer-ATS URL it came from, provenance tier, and comp + location as posted; then the body. If the application form has free-text questions, capture those too — they are half the application and they vanish with the req.
+
+  **This is load-bearing, not bookkeeping.** Postings come down within weeks, and the moment one does, every JD quote in `apply-notes.md` becomes an unverifiable assertion. Screens land weeks after applying and need the actual requirements text, not someone's summary of it. And when a company has sibling reqs with near-identical titles, a stored `jd.md` is the only thing that settles which one was actually applied to. Build materials from this file, not from memory of the posting.
+
+- `apply-notes.md` — DIRECT APPLY LINK at top, what they want (quoting JD verbatim **from `jd.md`**), why this fits the user, scam verdict, manual steps if any, FLEX skill flags.
 - NO cover letter is generated. If the role requires one, put a short structural outline plus 1-2 lines of angle into `apply-notes.md`; the user writes it in their own voice.
 - `outreach-draft.md` — short LinkedIn DM or cold email targeting a real named person at the company (only if a real person was identified — do not invent recipients).
 
 **Email outreach draft (if an email tool is connected and a real address was found).** If the environment has an email-sending connector available (e.g. Gmail) and the outreach target is a cold email (not a LinkedIn DM) with a real, verifiable email address, stage the same content as an actual draft in the user's email account using the connector's draft-creation tool — never a send tool, even if one is technically available. This is in addition to `outreach-draft.md`, not a replacement for it. Keep the email brief and respectful: 3-5 sentences, one clear reason it's relevant to this specific person, no attachments unless the connector supports them and the user's profile explicitly authorized it. Note the draft's ID or location in `apply-notes.md` so `morning-brief` can point the user to it. Cap at ONE outreach draft per sweep — this is a precision play, not a volume play.
 - `resume.tex` (or `resume.md`) — tailored from `<workspace>/profile-resume.md` and the template at `assets/resume-template/`. Render to PDF.
+
+**Where resume content may be copied FROM — the source is the constraint, not the copying.** Reusing phrasing across builds is the right way to work; pulling it from the wrong place is how errors replicate. Rank sources: the user's own words, then their repos/source-of-truth files, then their pre-AI baseline resume, then the canonical template, then **gold-star builds only** (past applications that actually reached a screen or later). An ordinary prior application folder is one earlier session's unreviewed output and may carry its mistakes forward, so read it for phrasing at most, never for facts.
+
+**Audit the blocks that never change.** Tailored sections (skills, projects, lead bullets) get rewritten per JD and are self-verifying by construction. The stable blocks (teaching, education, older project descriptions, contact details) are the ones nobody re-reads, which makes them the only place errors can sit unnoticed for months. Re-read them against the source of truth periodically, not just at authoring time. When something wrong does turn up in a stable block, `grep -rl` the workspace before calling it a one-off: the default assumption should be that it already propagated.
 
 **Resume rendering — adaptive renderer.** Detect what is installed locally:
 
