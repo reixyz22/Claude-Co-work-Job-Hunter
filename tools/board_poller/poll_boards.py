@@ -335,6 +335,35 @@ def fetch_workable(e):
     return out
 
 
+def fetch_rippling(e):
+    """Verified 2026-09-12 (nerdio-careers, 33 reqs). Tenant is the ats.rippling.com slug:
+    ats.rippling.com/<tenant>/jobs. Public, no auth. Response is a bare JSON array, one
+    object per open req, with uuid / name / department / url / workLocation.
+
+    LIMITATION, and it matters: the payload carries NO posting date. `posted` is always
+    "". Freshness for a Rippling board therefore comes only from the seen.json diff --
+    a req shows up as new the first run after it appears -- so a board registered today
+    gives no age information about reqs that were already open. Register early."""
+    tenant = e["tenant"]
+    d = _get("https://api.rippling.com/platform/api/ats/v1/board/%s/jobs" % tenant)
+    rows = d if isinstance(d, list) else (d.get("results") or d.get("jobs") or [])
+    out = []
+    for j in rows:
+        wl = j.get("workLocation") or {}
+        if not isinstance(wl, dict):
+            wl = {"label": str(wl)}
+        uid = str(j.get("uuid", "") or "")
+        if not uid:
+            continue
+        out.append(dict(
+            id=uid,
+            title=j.get("name", "") or "",
+            location=wl.get("label") or wl.get("id") or "",
+            url=j.get("url") or "https://ats.rippling.com/%s/jobs/%s" % (tenant, uid),
+            posted=""))
+    return out
+
+
 def fetch_raw(e):
     """HTML fallback for boards with no JSON API (JazzHR, small custom career pages).
     GET the page and extract anchor links whose text looks like a job title. Works on
@@ -364,6 +393,7 @@ def fetch_raw(e):
 FETCHERS = {"greenhouse": fetch_greenhouse, "lever": fetch_lever,
             "ashby": fetch_ashby, "workday": fetch_workday,
             "smartrecruiters": fetch_smartrecruiters, "workable": fetch_workable,
+            "rippling": fetch_rippling,
             "jazzhr": fetch_raw, "raw": fetch_raw, "custom": fetch_raw}
 
 
@@ -390,6 +420,10 @@ def parse_url(url):
          or re.search(r"https?://([\w-]+)\.workable\.com", u))
     if m:
         return {"ats": "workable", "account": m.group(1), "source_url": url}
+    m = (re.search(r"ats\.rippling\.com/([\w.-]+)", u)
+         or re.search(r"api\.rippling\.com/platform/api/ats/v1/board/([\w.-]+)", u))
+    if m:
+        return {"ats": "rippling", "tenant": m.group(1), "source_url": url}
     m = re.search(r"https?://([\w.-]+\.myworkdayjobs\.com)/(?:[\w-]+/)?([\w-]+)", u)
     if m:
         host = m.group(1)
@@ -763,7 +797,8 @@ def resolve_name(name):
               ("lever", fetch_lever, "company"),
               ("ashby", fetch_ashby, "org"),
               ("smartrecruiters", fetch_smartrecruiters, "company"),
-              ("workable", fetch_workable, "account"))
+              ("workable", fetch_workable, "account"),
+              ("rippling", fetch_rippling, "tenant"))
     for slug in _slugs(name):
         for ats, fetch, keyf in probes:
             try:

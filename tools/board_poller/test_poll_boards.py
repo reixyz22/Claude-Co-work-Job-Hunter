@@ -122,6 +122,58 @@ class TestParseUrl(unittest.TestCase):
     def test_unrecognized_returns_none(self):
         self.assertIsNone(pb.parse_url("https://example.com/careers"))
 
+    def test_rippling(self):
+        # Added 2026-09-12. Rippling was an unrecognized vendor until Nerdio surfaced it;
+        # Loop and Supernova are on the same ATS, so this was a three-employer blind spot.
+        for u in ("https://ats.rippling.com/nerdio-careers/jobs",
+                  "https://ats.rippling.com/nerdio-careers/jobs/0b82e6f3-fd54-40d7",
+                  "https://api.rippling.com/platform/api/ats/v1/board/nerdio-careers/jobs"):
+            info = pb.parse_url(u)
+            self.assertEqual(info["ats"], "rippling", u)
+            self.assertEqual(info["tenant"], "nerdio-careers", u)
+
+
+class TestRipplingShape(unittest.TestCase):
+    """Offline: feed fetch_rippling the real 2026-09-12 response shape via a stubbed _get."""
+
+    SAMPLE = [
+        {"uuid": "8dbd3afd-a657", "name": "Application Security Architect",
+         "department": {"id": "Impl", "label": "Impl"},
+         "url": "https://ats.rippling.com/nerdio-careers/jobs/8dbd3afd-a657",
+         "workLocation": {"label": "Remote (United States)", "id": "Remote (United States)"}},
+        {"uuid": "0b82e6f3-fd54", "name": "Solutions Engineer (Early Career)",
+         "department": {"id": "Corp", "label": "Corp"},
+         "url": "https://ats.rippling.com/nerdio-careers/jobs/0b82e6f3-fd54",
+         "workLocation": {"label": "Remote (United States)", "id": "Remote (United States)"}},
+        {"uuid": "", "name": "Malformed row with no uuid", "workLocation": None},
+    ]
+
+    def setUp(self):
+        self._real = pb._get
+        pb._get = lambda url, data=None, headers=None: self.SAMPLE
+
+    def tearDown(self):
+        pb._get = self._real
+
+    def test_maps_fields_and_skips_uuidless_rows(self):
+        out = pb.fetch_rippling({"ats": "rippling", "tenant": "nerdio-careers"})
+        self.assertEqual(len(out), 2)          # the uuid-less row is dropped
+        self.assertEqual(out[1]["title"], "Solutions Engineer (Early Career)")
+        self.assertEqual(out[1]["location"], "Remote (United States)")
+        self.assertTrue(out[1]["url"].endswith("0b82e6f3-fd54"))
+
+    def test_posted_is_always_blank(self):
+        # Rippling ships no posting date. Asserted so a future change that starts
+        # inventing one has to break a test first -- a fabricated age would promote
+        # dead reqs straight to the top under the freshness-first ranking rule.
+        for row in pb.fetch_rippling({"ats": "rippling", "tenant": "nerdio-careers"}):
+            self.assertEqual(row["posted"], "")
+
+    def test_classify_finds_the_junior_req(self):
+        out = pb.fetch_rippling({"ats": "rippling", "tenant": "nerdio-careers"})
+        titles = [r["title"] for r in out if pb.classify(r["title"])]
+        self.assertIn("Solutions Engineer (Early Career)", titles)
+
 
 class TestLocation(unittest.TestCase):
     def ok(self, l):

@@ -141,3 +141,21 @@ Paths can be overridden with `BOARD_REGISTRY`, `BOARD_SEEN`, `BOARD_OUT` and
 There is a 1.5s delay between requests and a descriptive User-Agent. These are public
 endpoints that the companies' own career pages call, but do not hammer them — a few runs
 a day is plenty, and more would not surface anything sooner.
+
+## Rippling (added 2026-09-12)
+
+```
+https://api.rippling.com/platform/api/ats/v1/board/{tenant}/jobs
+```
+
+`{tenant}` is the slug in the careers URL: `ats.rippling.com/<tenant>/jobs`. Public, no auth.
+Returns a bare JSON array, one object per open req: `uuid`, `name`, `department`, `url`, `workLocation`.
+
+**No posting date in the payload.** `posted` comes back empty for every Rippling req, so age
+can only come from the `seen.json` diff -- a req reads as new on the first run after it appears,
+and a board registered today tells you nothing about how long its existing reqs have been open.
+Register Rippling boards early; the freshness signal only starts accruing once they are in.
+
+**Tenant slugs are not guessable, so probe before registering.** `loop` and `loop-careers` are two
+unrelated companies on this ATS (the first is the US AI/logistics one, the second a Toronto
+fintech). Pull the board and read a few titles before adding it.
