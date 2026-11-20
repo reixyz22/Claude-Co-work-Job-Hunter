@@ -1,10 +1,114 @@
 # Daily-Job-Hunter
 
-Most cold applications get ghosted, and the rest come with no feedback. You spend hours on aggregator sites that reshuffle dead listings, write the same materials from scratch over and over, and don't really know which boards are worth checking next time.
+Most cold applications get ghosted, and the rest come with no feedback. You spend hours on aggregator sites that reshuffle dead listings and write the same materials from scratch over and over.
 
-This plugin handles the slog inside Claude Cowork: it finds live postings on the boards that actually work for your situation, drafts tailored resumes and outreach, identifies recruiters worth a direct email, and learns over time which sources produce real leads versus noise. You wake up to a ranked brief with apply links and materials ready. You read, send what you want, and tell the system what stuck and what was a scam.
+This plugin handles the slog inside Claude Cowork. It finds live postings on the boards that actually work for your situation, checks every one against the employer's own site, drafts tailored resumes and outreach, and learns over time which sources produce real leads versus noise. You wake up to a ranked brief on a local dashboard, with apply links and materials ready. You read, send what you want, and tell the system what stuck and what was a scam.
 
 It writes drafts. You ship them.
+
+![Today tab: the short list, progress and what's coming up](docs/screenshots/today.png)
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/lead-expanded.png" alt="Expanded lead: the job description first, the sweep's notes under it"><br><sub>Every lead opens to its job description, saved from the employer's own posting, with the sweep's analysis underneath.</sub></td>
+<td width="50%"><img src="docs/screenshots/build-materials.png" alt="Build materials with an optional note"><br><sub>One tap builds the resume and apply notes for a lead, right away if Claude Code is installed.</sub><br><br><img src="docs/screenshots/calendar.png" alt="Calendar of events and progress"><br><sub>Events, pins, and a mark for every day you got something done.</sub></td>
+</tr>
+</table>
+
+<sub>Screenshots use mock data.</sub>
+
+**Contents:** [What you get](#what-you-get) · [Quick start](#quick-start) · [The dashboard](#the-dashboard) · [How it works](#how-it-works) · [Guardrails](#how-it-avoids-confidently-wrong-output) · [board_poller](#board_poller--direct-ats-polling-zero-tokens) · [Token cost](#token-cost) · [Files](#files-the-plugin-writes-to-your-workspace) · [Skills](#skills-shipped) · [Changelog](#changelog)
+
+## What you get
+
+**Finding leads**
+
+- Direct ATS polling of your target companies via `board_poller`, no tokens spent
+- Boards with karma and tiers — the system learns which sources actually work for you, and parks the quiet ones instead of killing them
+- Ghost-burn tracking with three tiers (RED permanent / YELLOW 90 days / GREEN cooled-off)
+- Salary-band calibration — comp is read against winnability, so a high-comp lead with no concrete angle (referral, named contact, a JD line your work directly answers) is logged as a stretch instead of taking a top-3 slot
+- Autonomous mornings — fresh leads ready when you wake up
+
+**Applying**
+
+- Tailored resume and outreach drafts (with named recruiters when identifiable, never invented). Cover letters are **not** auto-generated — when a role requires one you get a structural outline and an angle, and you write it in your own voice
+- Optional email outreach drafts — when a real named contact is found, a ready-to-send email is staged in your drafts folder. Draft only: the plugin never sends, and any reply is yours to handle
+- A `CLAUDE.md` template seeded with battle-tested job-hunt rules (resume tightness, JD-quote-verbatim, provenance tiers, flex-skill strategy, recruiter-direct outreach play, scam patterns)
+
+**Staying on top of it**
+
+- Numbered applied tracking with a daily pending count and study-nudge prompts after dry streaks
+- Optional email tracking (connect an account like Gmail) — the midday pass reads confirmations and rejections and keeps `applied.md` current, read-only
+- Frequency-tallied skill-gap log with concrete study paths (CodePath, Advent of Code, LeetCode, project ideas with expansion routes, language and Linux resources)
+- A local dashboard: today's short list, every lead with its job description, one-tap kill and build buttons, a calendar, and a points/streak tracker
+
+## Quick start
+
+> **Read before installing.** This plugin generates AI-written drafts. AI hallucinates. Resume tailorings and outreach are templates, not finished documents — read every one before sending, especially the first ten or twenty while you learn how the model drifts on your background. The full disclaimer is in [`skills/setup/references/disclaimers.md`](https://github.com/reixyz22/Claude-Co-work-Job-Hunter/blob/main/skills/setup/references/disclaimers.md) and is the first thing setup reads to you.
+
+1. Get the `.plugin` file and install it in Cowork. Download it from [Releases](https://github.com/reixyz22/Claude-Co-work-Job-Hunter/releases), or build it yourself from a clone:
+
+   ```
+   git clone https://github.com/reixyz22/Claude-Co-work-Job-Hunter.git
+   cd Claude-Co-work-Job-Hunter
+   git archive --format=zip -o daily-job-hunter.plugin HEAD
+   ```
+
+   Use `git archive`, not GitHub's "Download ZIP": the ZIP wraps everything in an extra folder and the plugin then fails to load. `git archive` also packs only tracked files, so your own workspace state never ends up inside a plugin you share.
+
+   <img width="661" alt="Installing the plugin in Cowork" src="https://github.com/user-attachments/assets/8cf5a89b-8b1e-472c-aa12-aeeaeaecb787" />
+
+2. Run the `setup` skill in a new chat with / . Claude will ask you for, in order:
+   - A workspace folder (state files live there, on your computer, locally — nothing leaves)
+   - Name, email, phone, city/state, work authorization, LinkedIn, GitHub (any can be skipped; no street address is ever collected)
+   - Career stage, role focus, geography, remote tolerance
+   - Your best current resume (PDF or LaTeX)
+   - One or more code folders for a read-only skills inventory
+   - Two to four projects you'd want to talk about in interviews
+   - What you most want to learn next (shapes the skill-gap study suggestions)
+   - Companies or industries to filter out (ethics seed)
+3. Confirm the scheduled tasks (default 1am + 6am local time, plus a 1pm inbox pass if you connect an email account, and an optional twice-weekly event sweep).
+4. Optionally do a dry-run preview.
+5. Tomorrow morning, open the dashboard (see [The dashboard](#the-dashboard)) or read `brief-YYYY-MM-DD-6am.md` in your workspace.
+6. Tell it when you apply and when you spot a scam, on the dashboard or in your own words. The system depends on this (see [How it works](#how-it-works)).
+
+Setup takes about ten minutes.
+
+## The dashboard
+
+A local web page where the briefs actually get read. Python standard library only: no pip, no node, no build step. It binds to `127.0.0.1`, so nothing is exposed off your machine.
+
+```
+python3 tools/brief_site/serve.py          # http://127.0.0.1:8787
+```
+
+On Windows, double-click `tools/brief_site/install-autostart.bat` once and it starts hidden every time you log in (`remove-autostart.bat` undoes it). The server restarts itself when its own code changes, so a plugin update never leaves a stale server answering a newer page.
+
+- **Today** shows a short list sized by a load dial (Easy / Normal / Catch-up / Everything), one lead per company, freshest first, never past the freshness cutoff. Progress, a streak and low-effort "freebie" tasks sit beside it on purpose: a bad day should still end with something ticked.
+- **Leads** open to the job description first, saved verbatim from the employer's posting, with the sweep's analysis as a separate section under it.
+- **Kill buttons** on every card: **Red** (permanent), **Yellow** (three months), **Dead link**. Quiet until you hover.
+- **Build materials please**, with an optional note, on any lead without materials. If the [Claude Code](https://code.claude.com/docs/en/setup) CLI is on your PATH, it builds the folder **right now**: an unattended `claude -p` run in your workspace with a restricted tool list, your `CLAUDE.md` rules loaded automatically, and the card flips from "Building now" to "materials ready" when the files land. Resume PDFs need a LaTeX compiler on the same machine (MiKTeX on Windows: `winget install -e --id MiKTeX.MiKTeX`, then `initexmf --set-config-value [MPM]AutoInstall=1` so missing-package prompts can't stall an unattended run). Without the CLI, or if a build fails, the request waits for the next scheduled sweep. It never applies or submits anything.
+- **Calendar** shows events from the event finder, your own pins, and every day you got something done.
+
+**How the clicks reach the pipeline.** The web server never writes your markdown files. Every click appends one fsync'd line to `state/events.jsonl`; the next sweep runs `drain_queue.py`, which writes applications into `applied.md`, kills into `ghost.md`, and notes and build requests into `dashboard-inbox.md`. Draining is idempotent, so a skipped run or a shut-down laptop costs latency and nothing else. Design notes in [`tools/brief_site/README.md`](tools/brief_site/README.md).
+
+Personal settings (your name for the greeting, companies to deprioritize, preset kill reasons, a line of context for the ask bar) go in `tools/brief_site/config.json`, which is gitignored. Copy `config.example.json` to start.
+
+## How it works
+
+Up to three scheduled passes a day, plus an optional event sweep. Your computer needs to be on or set to wake at the scheduled times.
+
+**Overnight (1am)** runs discovery across three parallel layers — direct ATS polling of your registered target companies, broad source-biased search, and location-first freshness search — then scam-screens, ranks, and builds tailored materials for the best lead.
+
+**Morning (6am)** verifies every apply link on the employer's own API, runs its share of the search (the two runs split the query load), and writes the brief you read with coffee, then publishes it to the dashboard.
+
+**Midday (1pm, optional)** scans your inbox. Job-alert email reaches companies no board rotation queries, so it is a discovery channel in its own right — and it is the only channel that reports back on applications you already sent, which is what keeps `applied.md` from drifting out of date.
+
+**Twice weekly (`event-finder`, WIP)** looks for in-person events worth your time — hiring events with a published employer roster, user groups that meet inside company offices, hackathons — and ranks them by who is in the room rather than by how the event looks. It never registers you for anything.
+
+Every pass reads your `applied.md` and `ghost.md` first to skip anything you've already touched. Each source carries a karma score that climbs when leads work out and decays back toward neutral when they don't, and tiers (CORE / ROTATION / DORMANT / BLOCKED) keep a quiet week from burying a good board permanently.
+
+**You're a participant, not a passenger.** The system needs to hear when you apply to a role and when you spot a scam or a dead listing. Tick it on the dashboard or say it in your own words ("I applied to Acme," "skip Beta for a few months"). Without it, the same leads get recycled. Five minutes a week is enough.
 
 ## How it avoids confidently wrong output
 
@@ -17,58 +121,6 @@ Early versions produced briefs that read perfectly and were wrong — inflated p
 
 The same instinct shows up in the tooling: `tools/board_poller/README.md` labels its own ATS endpoint table *unverified — written from recall, not vendor documentation*, and the `--add` command probes each board live before registering it. That is where the guess gets tested.
 
-## Read before installing
-
-This plugin generates AI-written drafts. AI hallucinates. Resume tailorings and outreach are templates, not finished documents — read every one before sending, especially the first ten or twenty while you learn how the model drifts on your background. The full disclaimer is in [`skills/setup/references/disclaimers.md`](https://github.com/reixyz22/Claude-Co-work-Job-Hunter/blob/main/skills/setup/references/disclaimers.md) and is the first thing setup reads to you.
-
-## Quick start
-
-1. Get the `.plugin` file and install it in Cowork. Download it from [Releases](https://github.com/reixyz22/Claude-Co-work-Job-Hunter/releases), or build it yourself from a clone:
-
-   ```
-   git clone https://github.com/reixyz22/Claude-Co-work-Job-Hunter.git
-   cd Claude-Co-work-Job-Hunter
-   git archive --format=zip -o daily-job-hunter.plugin HEAD
-   ```
-
-   > **Don't use GitHub's "Download ZIP" button for this.** It wraps everything in a
-   > `Claude-Co-work-Job-Hunter-main/` folder, which puts `.claude-plugin/plugin.json` one level
-   > below the archive root, and the plugin then fails to load. `git archive` writes the files at
-   > the root, where the loader expects them — and it packs only tracked files, so your own
-   > workspace state can never end up inside a plugin you hand to someone else.
-
-<img width="1322" height="1268" alt="image" src="https://github.com/user-attachments/assets/8cf5a89b-8b1e-472c-aa12-aeeaeaecb787" />
-
-2. Run the `setup` skill in a new chat with / . Claude will ask you for, in order:
-   - A workspace folder (state files live there, on your computer, locally — nothing leaves)
-   - Name, email, phone, city/state, work authorization, LinkedIn, GitHub (any of these can be skipped if you'd rather fill them in by hand later — note: no street address is collected, city/state is all resumes and geo-matching need)
-   - Career stage, role focus, geography, remote tolerance
-   - Your best current resume (PDF or LaTeX)
-   - One or more code folders for a read-only skills inventory
-   - Two to four projects you'd want to talk about in interviews
-   - What you most want to learn next (shapes the skill-gap study suggestions)
-   - Companies or industries to filter out (ethics seed)
-3. Confirm the scheduled tasks (default 1am + 6am local time, plus a 1pm inbox pass if you connect an email account, and an optional twice-weekly event sweep).
-4. Optionally do a dry-run preview.
-5. Tomorrow morning, open the dashboard (see [The dashboard](#the-dashboard)) or read `brief-YYYY-MM-DD-6am.md` in your workspace.
-6. Tell Claude when you apply to a role and when you spot a scam — in your own words, no special syntax. The system depends on this; see "You're a participant" below.
-
-Setup takes about ten minutes.
-
-## How it works
-
-Up to three scheduled passes a day.
-
-**Overnight (1am)** runs discovery across three parallel layers — direct ATS polling of your registered target companies, broad source-biased search, and location-first freshness search — then scam-screens, ranks, and builds tailored materials for the best lead.
-
-**Morning (6am)** verifies every apply link, runs a short freshness pass to catch anything posted overnight, computes your applied-tally, and writes the brief you read with coffee.
-
-**Midday (1pm, optional)** scans your inbox. Job-alert email reaches companies no board rotation queries, so it is a discovery channel in its own right — and it is the only channel that reports back on applications you already sent, which is what keeps `applied.md` from drifting out of date.
-
-**Twice weekly (`event-finder`, WIP)** looks for in-person events worth your time — hiring events with a published employer roster, user groups that meet inside company offices, hackathons — and ranks them by who is in the room rather than by how the event looks. It never registers you for anything.
-
-Every pass reads your `applied.md` and `ghost.md` first to skip anything you've already touched. Each source carries a karma score that climbs when leads work out and decays back toward neutral when they don't, and tiers (CORE / ROTATION / DORMANT / BLOCKED) keep a quiet week from burying a good board permanently.
-
 ## board_poller — direct ATS polling, zero tokens
 
 `tools/board_poller/` is a stdlib-only Python tool (no `pip install`) that polls company ATS boards directly — Greenhouse, Lever, Ashby, Workday, SmartRecruiters, Workable, Rippling, plus an HTML fallback — and reports only what is **new** since the last run.
@@ -77,82 +129,22 @@ Every pass reads your `applied.md` and `ghost.md` first to skip anything you've 
 python3 poll_boards.py --add "<your filtered ATS careers URL>"   # register a company
 python3 poll_boards.py --run                                     # diff since last run
 python3 poll_boards.py --standing                                # everything currently open
-python3 -m unittest test_poll_boards                             # 22 offline unit tests
+python3 -m unittest test_poll_boards                             # 38 offline unit tests
 ```
 
 The keyword filter is the small half of it. The **diff** is the point: `seen.json` remembers every posting ID ever fetched, so each run surfaces only what appeared since last time — which is how a posting a few hours old gets caught, the strongest ranking signal the pipeline has.
 
 Your `registry.json` (target companies) and `seen.json` are gitignored; `registry.example.json` documents the shape. `REGISTRY-RECOVERY-2026-08-13.md` is the postmortem from the day a cleanup one-liner assumed `boards` was a list when it is a dict and wiped 61 board configs — kept in the repo because the prevention notes are the useful part.
 
-## You're a participant, not a passenger
-
-The system needs to hear from you when:
-
-1. You apply to a role. "I applied to Acme" — anything like that. Without this, the same lead gets recycled tomorrow.
-2. You spot a scam or a dead listing. "Acme turned out to be a scam," "skip Beta for a few months" — your own words. Without this, the dead lead keeps coming back.
-
-Five minutes of feedback per week is enough.
-
-## What you get
-
-- Numbered applied tracking with a daily pending count and study-nudge prompts after dry streaks
-- Boards with karma and tiers — the system learns which sources actually work for you, and parks the quiet ones instead of killing them
-- Ghost-burn tracking with three tiers (RED permanent / YELLOW 90 days / GREEN cooled-off)
-- Tailored resume and outreach drafts (with named recruiters when identifiable, never invented). Cover letters are **not** auto-generated — when a role requires one you get a structural outline and an angle, and you write it in your own voice
-- Direct ATS polling of your target companies via `board_poller`, no tokens spent
-- Salary-band calibration — a lead's comp gets read against winnability, not just ranked by number. High comp at a portal-hiring company without a concrete angle (referral, named contact, a JD line your shipped work directly answers) gets logged as a stretch instead of eating a top-3 slot
-- Optional email tracking (if you connect an email account like Gmail) — the midday pass reads your inbox for application confirmations and rejections and keeps `applied.md` current automatically, read-only, never touches anything else in your inbox
-- Optional email outreach drafts (same connector) — when a real named contact is found, a ready-to-send email is staged directly in your drafts folder alongside the markdown version. Draft only, always — the plugin never sends on your behalf, and if someone replies, that conversation is handed straight back to you
-- Frequency-tallied skill-gap log with concrete study paths (CodePath, Advent of Code, LeetCode, project ideas with expansion routes, language and Linux resources)
-- A `CLAUDE.md` template seeded with battle-tested job-hunt rules (resume tightness, JD-quote-verbatim, provenance tiers, flex-skill strategy, recruiter-direct outreach play, scam patterns)
-- Autonomous mornings — fresh leads ready when you wake up
-- A local dashboard: today's short list, every lead with its job description, one-tap kill and build buttons, a calendar of events, and a points/streak tracker. See below
-
-## The dashboard
-
-![Today tab](docs/screenshots/today.png)
-
-A local web page that is where the briefs actually get read. Python standard library only: no pip, no node, no build step. It binds to `127.0.0.1`, so nothing is exposed off your machine. The screenshots here use mock data.
-
-```
-python3 tools/brief_site/serve.py          # http://127.0.0.1:8787
-```
-
-On Windows, double-click `tools/brief_site/install-autostart.bat` once and it starts hidden every time you log in (`remove-autostart.bat` undoes it). The server also restarts itself when its own code changes, so a plugin update never leaves a stale server answering a newer page.
-
-**Today** caps the list at a few items you choose with a load dial (Easy / Normal / Catch-up / Everything), deduped by company, freshest first, and never shows a lead past the freshness cutoff. Progress, a streak and low-effort "freebie" tasks sit next to it on purpose: a bad day should still end with something ticked.
-
-**Leads** expand to show the job description first, saved verbatim from the employer's own posting, with the sweep's analysis as a separate section under it.
-
-![Expanded lead: JD first, sweep notes under it](docs/screenshots/lead-expanded.png)
-
-Every card has three quiet kill buttons (**Red** permanent, **Yellow** three months, **Dead link**) and, when no materials exist yet, **Build materials please**, with an optional note for the build:
-
-![Build materials with a note](docs/screenshots/build-materials.png)
-
-If the [Claude Code](https://code.claude.com/docs/en/setup) CLI is on your PATH, that button builds the folder **right now**: it starts an unattended `claude -p` run in your workspace with a restricted tool list, your `CLAUDE.md` rules load automatically, and the card flips from "Building now" to "materials ready" when the files land. Resume PDFs need a LaTeX compiler on the same machine (MiKTeX on Windows: `winget install -e --id MiKTeX.MiKTeX`, then `initexmf --set-config-value [MPM]AutoInstall=1` so missing-package prompts can't stall an unattended run). Without the CLI, or if a build fails, the request simply waits for the next scheduled sweep. The build never applies or submits anything.
-
-**Calendar** shows events from the event finder, your own pins, and a dot for every day you got something done.
-
-![Calendar](docs/screenshots/calendar.png)
-
-**How the clicks reach the pipeline.** The web server never writes your markdown files. Every click appends one fsync'd line to `state/events.jsonl`; the next sweep runs `drain_queue.py`, which writes applications into `applied.md`, kills into `ghost.md`, and notes and build requests into `dashboard-inbox.md`. Draining is idempotent, so a skipped run or a shut-down laptop costs latency and nothing else. Full design notes in [`tools/brief_site/README.md`](tools/brief_site/README.md).
-
-Personal settings (your name for the greeting, companies to deprioritize, preset kill reasons, a line of context for the ask bar) go in `tools/brief_site/config.json`, which is gitignored. Copy `config.example.json` to start.
-
-## Scheduled runs
-
-Overnight (default 1am local) does the research. Morning (default 6am local) does the verification + delivery. Midday (default 1pm local, weekdays) does the inbox pass and only exists if you connect an email account. Your computer needs to be on or set to wake at the scheduled times.
-
 ## Token cost
 
 The Claude Pro plan ($20/month as of May 2026) is enough to run the full system comfortably. The free tier's daily token limit will hit before the morning brief completes.
 
-**The binding constraint on search volume is the context window, not your token allowance.** Each web-search call returns roughly 7,000 tokens of result text that then sits in the session for the rest of the run, so a sweep that fires 50 searches inline spends most of its window on raw results and has nothing left for verification and write-up. It does not fail loudly; it degrades, re-serving stale leads and mis-ranking.
+**The binding constraint on search volume is the context window, not your token allowance.** Each web-search call returns roughly 7,000 tokens of result text that then sits in the session for the rest of the run, so a sweep that fires 50 searches inline spends most of its window on raw results and has nothing left for verification and write-up. It degrades quietly, re-serving stale leads and mis-ranking.
 
 The sweeps handle this by running searches in **subagent batches** — 5-8 queries per subagent, `numResults: 5`, and the subagent returns only a compact survivor list (employer, role, verbatim experience requirement, employer ATS link, dated provenance, and which query found it). The raw result text is spent in the subagent's context and never enters the parent sweep's. That is what makes a 40-50 query sweep reachable without quality loss. Full protocol in `skills/nightly/SKILL.md` STEP 1.
 
-If a sweep under-delivers on query count, it should name which resource actually ran out. Rate limit, token budget and context window are three different failures with three different fixes, and reporting one as another sends you looking in the wrong place.
+If a sweep under-delivers, it names which resource ran out: rate limit, token budget and context window are three different failures with three different fixes.
 
 ## Files the plugin writes to your workspace
 
@@ -197,6 +189,9 @@ If a sweep under-delivers on query count, it should name which resource actually
 
 **0.3.4** — Added **the dashboard** (`tools/brief_site`): a local, stdlib-only web front end for the briefs with a Today list, expandable leads, calendar, study and points tabs, and an append-only event log that the sweeps drain, so clicks survive a closed laptop and skipped runs. Expanded leads now show the **job description first** and the sweep's notes under it; both sweeps save a JD file for every lead they surface. New **Build materials** button with an optional note: with the Claude Code CLI installed it builds the application folder immediately on your machine, otherwise the next sweep builds it first. Red / Yellow / Dead-link kill buttons write to `ghost.md` through the same queue. Windows autostart (`install-autostart.bat`) and a self-restarting server. Fixed a parser bug that marked every "NOT BUILT" lead as ready, and the morning brief is now written as `brief-YYYY-MM-DD-6am.md` with a fixed table header so the dashboard always picks it up.
 
+<details>
+<summary>Earlier releases (0.1.0 to 0.3.3)</summary>
+
 **0.3.3** — Added a **Rippling ATS adapter** to `board_poller`. Rippling was an unrecognized vendor, so `--add` rejected its URLs outright and every Rippling-hosted employer was unpollable by construction, which is a harder failure than the usual "nobody registered it yet." It is not a niche vendor either: three employers already in one user's own application history run on it. The public board endpoint takes no auth and returns a flat array the poller already knows how to normalize. One caveat is documented and asserted in a test: Rippling ships **no posting date**, so `posted` stays empty and age can only come from the seen-diff. A test fails if a future change starts inventing one, since a fabricated age would promote dead reqs straight to the top under freshness-first ranking. Suite is 18 → 22 tests.
 
 **0.3.2** — Every application folder now captures `jd.md`, the posting's body text plus the application form's own free-text questions, written before any other artifact and used as the source for the materials. Postings come down within weeks; once one does, every JD quote in the apply notes is unverifiable, screens that land later have no requirements text to prep against, and there is no way to tell which of two similarly-titled sibling reqs was actually applied to. Also documents where resume content may be copied from: reuse is correct, but the source must be the user's own words, their repos, their baseline resume, the canonical template, or a build that actually reached a screen. Pulling from an arbitrary prior folder inherits that session's unreviewed mistakes. Added a standing instruction to audit the resume blocks that never change, since tailored sections are self-verifying and boilerplate is not, which is where a wrong line can sit for months.
@@ -210,6 +205,8 @@ If a sweep under-delivers on query count, it should name which resource actually
 **0.1.1** — Setup no longer asks for a street address, just city/state (or city/country) — resumes and geo-matching never needed more than that, and asking for it was a privacy overreach. Added salary-band calibration to the nightly research pass so high-comp leads get ranked by winnability, not just by the number.
 
 **0.1.0** — Initial release.
+
+</details>
 
 ## Author
 
