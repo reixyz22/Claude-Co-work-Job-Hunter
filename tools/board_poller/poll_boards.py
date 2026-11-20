@@ -12,7 +12,8 @@ run after the first surfaces only what appeared since last time. The first run f
 set of boards shows everything currently open (useful baseline), then it is diffs.
 """
 import argparse, json, os, re, sys, time, urllib.request, urllib.error
-from urllib.parse import urljoin
+import concurrent.futures, threading
+from urllib.parse import urljoin, urlsplit
 import html as _html
 from datetime import datetime, timezone
 
@@ -30,7 +31,21 @@ WORKSPACE = os.environ.get("WORKSPACE",
                            os.path.abspath(os.path.join(HERE, "..", "..", "..")))
 
 UA    = "board_poller/1.0 (personal job-search tool; github.com/reixyz22)"
-DELAY = 1.5  # be a good citizen; these are public endpoints
+
+# Politeness model (reworked 2026-10-23). The old model slept DELAY seconds after
+# EVERY board, serially. With 79 registered boards that is ~118s of pure sleeping
+# before a single byte of network time, which put a clean run permanently over the
+# 120s shell limit the sweeps call this tool from -- it had become arithmetically
+# impossible to finish, not flaky. The registry spreads across only a handful of
+# vendor API hosts, so the correct model is: parallel ACROSS hosts, polite WITHIN a
+# host. Each host still gets serialized requests spaced HOST_DELAY apart.
+DELAY      = 1.5   # retained: per-host spacing for the legacy serial path / probes
+HOST_DELAY = float(os.environ.get("BOARD_HOST_DELAY", "0.4"))
+WORKERS    = int(os.environ.get("BOARD_WORKERS", "8"))
+# Hard wall-clock ceiling for the fetch phase. Whatever has not come back by then is
+# reported as a timeout error and the run still writes its outputs. A poller that
+# returns partial results beats one that is killed and writes nothing.
+BUDGET     = float(os.environ.get("BOARD_BUDGET", "90"))
 
 # ---------------------------------------------------------------- title filter
 # Negative (seniority) terms BEAT positive ones, so "Senior Associate Engineer"
@@ -38,6 +53,22 @@ DELAY = 1.5  # be a good citizen; these are public endpoints
 NEVER = re.compile(
     r"\b(sales|teller|cashier|retail|barista|driver|warehouse|custodian|"
     r"nurse|clinical|physician|attorney|counsel|paralegal|recruiter)\b", re.I)
+# Non-software engineering disciplines (added 2026-10-23). TECH matches
+# "engineer|engineering" broadly and its comment claimed "blue-collar/clinical/retail
+# titles simply won't match" -- but physical-engineering disciplines were never
+# considered, so Motorola's hardware reqs ("Entry Level Mechanical Engineer", "Entry
+# Level RF Design Engineer", "Entry Level Power Electronics and Analog Design
+# Engineer") matched TECH, matched JUNIOR, and landed in the highest-attention bucket
+# of the brief. A discipline word must sit within two words of an engineering noun, so
+# Software/Systems/Platform/Data/QA/Network Engineer are all untouched.
+NONSOFT = re.compile(
+    r"\b(mechanical|electrical|electronics|analog|rf|radio[\s-]?frequency|"
+    r"power\s+electronics|hardware|civil|structural|chemical|biomedical|industrial|"
+    r"manufacturing|packaging|thermal|optical|acoustic|materials|aerospace|"
+    r"mechatronic|hydraulic|pneumatic)\b(?:\s+\w+){0,2}\s+"
+    r"(engineer|engineering|design|designer|technician|developer|development)\b"
+    r"|\bfield\s+service\s+engineer\b"
+    r"|\bdrug\s+substance\b", re.I)
 SENIOR = re.compile(
     r"\b(senior|sr|staff|principal|lead|leads|manager|mgr|director|vp|"
     r"vice\s+president|head|architect|expert|distinguished|fellow|chief|"
@@ -76,7 +107,7 @@ def classify(title):
     t = (title or "").strip()
     if not t:
         return None
-    if SENIOR.search(t) or NEVER.search(t):
+    if SENIOR.search(t) or NEVER.search(t) or NONSOFT.search(t):
         return None
     if not (TECH.search(t) or ADJACENT.search(t)):
         return None
@@ -196,9 +227,26 @@ def _ms(v):
         return ""
 
 
+def _gh_token(e):
+    """Greenhouse board slug. Older registry rows were written with only a
+    source_url (the oldmissioncapital row raised a bare KeyError: 'token' on every
+    run since it was added 2026-09-15), so derive it rather than hard-failing."""
+    t = e.get("token")
+    if t:
+        return t
+    u = e.get("source_url") or e.get("url") or ""
+    for pat in (r"/v1/boards/([^/?#]+)/jobs", r"job-boards\.greenhouse\.io/([^/?#]+)",
+                r"boards\.greenhouse\.io/(?:embed/job_board\?for=)?([^/?#&]+)"):
+        m = re.search(pat, u)
+        if m:
+            return m.group(1)
+    raise KeyError("greenhouse board needs 'token' or a parseable source_url; "
+                   "entry has keys %s" % sorted(e))
+
+
 def fetch_greenhouse(e):
     # content=true returns the full JD for every job in this one call (no per-job fetch).
-    d = _get("https://boards-api.greenhouse.io/v1/boards/%s/jobs?content=true" % e["token"])
+    d = _get("https://boards-api.greenhouse.io/v1/boards/%s/jobs?content=true" % _gh_token(e))
     out = []
     for j in d.get("jobs", []):
         out.append(dict(
@@ -615,6 +663,91 @@ def _req_blocked(post, tokens):
     return any(t in hay for t in tokens)
 
 
+# ------------------------------------------------------------ parallel fetch
+# Serialize per host, run hosts concurrently. Greenhouse/Lever/Ashby/SmartRecruiters
+# all share one vendor API host apiece, so 35 Greenhouse boards queue politely behind
+# each other while Ashby's 23 proceed in parallel. Workday/Rippling/Workable/raw are
+# per-tenant hosts, so they key on their own hostname and barely contend at all.
+_VENDOR_HOST = {"greenhouse": "boards-api.greenhouse.io",
+                "lever": "api.lever.co",
+                "ashby": "api.ashbyhq.com",
+                "smartrecruiters": "api.smartrecruiters.com"}
+_gates = {}
+_gates_guard = threading.Lock()
+
+
+def _throttle_key(e):
+    """Which host this board's fetch will actually hit."""
+    ats = e.get("ats", "")
+    if ats in _VENDOR_HOST:
+        return _VENDOR_HOST[ats]
+    h = e.get("host")
+    if h:
+        return h
+    u = e.get("source_url") or e.get("url") or ""
+    return urlsplit(u).netloc or ats or "default"
+
+
+def _gate(key):
+    """Per-host (lock, [last_call_ts]) pair, created on first use."""
+    with _gates_guard:
+        if key not in _gates:
+            _gates[key] = (threading.Lock(), [0.0])
+        return _gates[key]
+
+
+def _fetch_one(name, e):
+    """Fetch one board, spacing calls to the same host by HOST_DELAY."""
+    f = FETCHERS.get(e["ats"])
+    if not f:
+        raise ValueError("unsupported ats: %s" % e["ats"])
+    lock, last = _gate(_throttle_key(e))
+    with lock:
+        wait = HOST_DELAY - (time.monotonic() - last[0])
+        if wait > 0:
+            time.sleep(wait)
+        try:
+            return f(e)
+        finally:
+            last[0] = time.monotonic()
+
+
+def _fetch_all(reg):
+    """Fetch every eligible board concurrently. Returns (results, errs).
+
+    results: list of (name, entry, posts). errs: list of (name, message).
+    Never raises: a board that fails or overruns BUDGET becomes an errs entry so the
+    caller can still write its outputs.
+    """
+    excludes = [x.lower() for x in reg.get("excludes", [])]
+    todo = []
+    for name, e in reg["boards"].items():
+        if e.get("skip"):
+            continue
+        if any(x in name.lower() for x in excludes):
+            continue
+        todo.append((name, e))
+    results, errs = [], []
+    if not todo:
+        return results, errs
+    deadline = time.monotonic() + BUDGET
+    with concurrent.futures.ThreadPoolExecutor(max_workers=WORKERS) as pool:
+        futs = {pool.submit(_fetch_one, n, e): (n, e) for n, e in todo}
+        for fut in concurrent.futures.as_completed(futs, timeout=None):
+            n, e = futs[fut]
+            try:
+                results.append((n, e, fut.result()))
+            except Exception as ex:
+                errs.append((n, "%s: %s" % (type(ex).__name__, ex)))
+            if time.monotonic() > deadline:
+                for pending, (pn, _pe) in futs.items():
+                    if not pending.done():
+                        pending.cancel()
+                        errs.append((pn, "timeout: exceeded %.0fs fetch budget" % BUDGET))
+                break
+    return results, errs
+
+
 def cmd_standing(workspace):
     """Re-surface ALL currently-open junior/watch leads (ignore seen.json), minus
     anything already in applied.md / ghost.md. This is the fix for the dry-sweep
@@ -622,23 +755,9 @@ def cmd_standing(workspace):
     forever. --standing lists what's actually open and un-actioned right now."""
     reg = load_registry()
     red, kill_tokens = load_exclusions(workspace)
-    junior, watch, errs = [], [], []
-    excludes = [x.lower() for x in reg.get("excludes", [])]
-    for name, e in reg["boards"].items():
-        if e.get("skip"):
-            continue
-        if any(x in name.lower() for x in excludes):
-            continue
-        f = FETCHERS.get(e["ats"])
-        if not f:
-            errs.append((name, "unsupported ats: %s" % e["ats"]))
-            continue
-        try:
-            posts = f(e)
-            time.sleep(DELAY)
-        except Exception as ex:
-            errs.append((name, str(ex)))
-            continue
+    junior, watch = [], []
+    results, errs = _fetch_all(reg)
+    for name, e, posts in results:
         for p in posts:
             if not location_ok(p.get("location", "")):
                 continue
@@ -663,24 +782,10 @@ def cmd_run(all_=False):
     reg = load_registry()
     known = set() if all_ else load_seen()
     seen = set(load_seen())
-    junior, watch, errs = [], [], []
+    junior, watch = [], []
     baseline = not os.path.exists(SEEN)
-    excludes = [x.lower() for x in reg.get("excludes", [])]
-    for name, e in reg["boards"].items():
-        if e.get("skip"):
-            continue
-        if any(x in name.lower() for x in excludes):
-            continue
-        f = FETCHERS.get(e["ats"])
-        if not f:
-            errs.append((name, "unsupported ats: %s" % e["ats"]))
-            continue
-        try:
-            posts = f(e)
-            time.sleep(DELAY)
-        except Exception as ex:
-            errs.append((name, str(ex)))
-            continue
+    results, errs = _fetch_all(reg)
+    for name, e, posts in results:
         for p in posts:
             key = "%s:%s" % (name, p["id"])
             seen.add(key)
@@ -702,6 +807,19 @@ def cmd_run(all_=False):
               file=sys.stderr)
     print("run complete: %d junior, %d watch, %d errors -> %s"
           % (len(junior), len(watch), len(errs), OUT_MD))
+
+
+def _posted_label(raw):
+    """Render a posting date for the brief. Was `raw[:10]`, which is right for an ISO
+    timestamp and wrong for every relative string an ATS actually returns -- Workday's
+    "Posted Yesterday" was being printed as "Posted Yes" in every brief. Slice only
+    when the value really is ISO; otherwise show the phrase as the employer wrote it."""
+    raw = (raw or "").strip()
+    if not raw:
+        return "unknown"
+    if re.match(r"^\d{4}-\d{2}-\d{2}", raw):
+        return raw[:10]
+    return raw
 
 
 def write_outputs(junior, watch, errs, baseline, out_md=OUT_MD, out_json=OUT_JSON):
@@ -763,7 +881,7 @@ def write_outputs(junior, watch, errs, baseline, out_md=OUT_MD, out_json=OUT_JSO
             L.append("- **%s** - %s%s%s - %s%s" % (p["company"], p["title"], tag,
                                                    yoe_tag, p.get("location", ""), extra))
             L.append("  %s  (%s, posted %s)" % (p.get("url", ""), age,
-                                                (p.get("posted", "") or "")[:10]))
+                                                _posted_label(p.get("posted", ""))))
         L.append("")
     sec("Junior / entry", junior)
     sec("Watch (unmarked level)", watch)
@@ -838,6 +956,7 @@ def cmd_resolve_file(path):
 
 
 def main():
+    global WORKERS, BUDGET
     ap = argparse.ArgumentParser(description="Poll ATS boards; report only what is new.")
     ap.add_argument("--add", metavar="URL", help="register a board from its careers URL")
     ap.add_argument("--name", help="custom registry key for --add")
@@ -851,7 +970,15 @@ def main():
     ap.add_argument("--workspace", metavar="DIR",
                     help="workspace dir holding applied.md/ghost.md (default: three levels up)")
     ap.add_argument("--resolve-file", metavar="PATH", help="probe a list of company names (one per line) across greenhouse/lever/ashby and auto-register hits")
+    ap.add_argument("--workers", type=int, metavar="N",
+                    help="concurrent fetch workers (default %d, env BOARD_WORKERS)" % WORKERS)
+    ap.add_argument("--budget", type=float, metavar="SEC",
+                    help="wall-clock ceiling for the fetch phase (default %.0fs, env BOARD_BUDGET)" % BUDGET)
     a = ap.parse_args()
+    if a.workers:
+        WORKERS = a.workers
+    if a.budget:
+        BUDGET = a.budget
     if a.add:
         cmd_add(a.add, a.name, not a.no_probe)
     elif a.verify:

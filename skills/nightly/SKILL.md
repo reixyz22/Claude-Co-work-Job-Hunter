@@ -34,6 +34,60 @@ Heavy research pass. Read in this order before any search:
 
 You should have already read all 9 files listed above. If any are missing (e.g., `CLAUDE.md` doesn't exist yet), the user has not completed setup — abort the sweep and tell them to run `setup` first.
 
+
+## STEP 0.4 — Drift check
+
+```bash
+python3 tools/drift_check.py --live
+```
+
+Optional: `drift_check.py` is a workspace-specific scanner for claims you have
+retired (old metrics, banned phrasings). If your workspace has no such file, skip
+this step.
+
+Exits non-zero when a live file still carries a claim an earlier ruling killed.
+Fix those before building anything, because the next resume will copy them forward.
+`applications/*` and the brief archive are history and are never rewritten.
+Unresolved conflicts live in `conflicts.md`; surface anything marked OPEN in the brief
+ONCE, then leave it alone until the user rules.
+
+## STEP 0.5 — Drain the dashboard queue (RUN THIS BEFORE SEARCHING)
+
+The user ticks checkboxes on the local dashboard (`tools/brief_site`). Those ticks
+are queued on disk, not applied live. Drain them first, because an "applied" tick
+changes the kill-check for this very run:
+
+```bash
+python3 tools/brief_site/drain_queue.py --root "$WORKSPACE"
+```
+
+- **Expect a backlog.** The computer gets shut off and runs get skipped. Events
+  queue until a sweep runs, so a drain covering several days is normal, not a bug.
+- It is **idempotent** -- safe to run twice, safe to re-run after a crash.
+- It appends applications to `applied.md` in the canonical format, and tasks and
+  notes to `dashboard-inbox.md`. **Read `dashboard-inbox.md` after draining** --
+  notes the user wrote are addressed to this run.
+- **`BUILD MATERIALS:` lines are the user asking for a folder.** The dashboard's
+  "Build materials please" button drains into `dashboard-inbox.md` as
+  `- BUILD MATERIALS: <lead> | <url> (requested ...)`. Treat every one not yet
+  handled as a top-priority build THIS run, whatever its rank: verify the link on
+  the employer's own surface, run the applied/ghost/scam check, then build
+  `applications/<slug>-YYYY-MM-DD/` (resume PDF, jd.md, apply-notes.md, plus any
+  free-text answer the form requires). Mark it `READY` in this run's brief table so
+  the button disappears. If the lead fails a check, do not build; say why in the
+  brief in one line. Freshness does not block a requested build: he chose it.
+- **Save every surfaced lead's JD (2026-11-19).** The dashboard's expanded
+  card shows the job description FIRST and the sweep's analysis under it. So for
+  every lead that lands in a brief table, save the posting body verbatim (pulled
+  from the employer API you already hit for liveness) to
+  `jds/<employer>-<role>-<YYYY-MM-DD>.md` with a short header (capture date, source
+  URL, employer posting date), and put that path in the row's Materials cell:
+  `NOT BUILT · JD saved: \`jds/<file>.md\``. A built folder's own `jd.md` is found
+  automatically from the `applications/<folder>/` path. A `BUILD MATERIALS` line may
+  carry `USER SAYS: ...`: follow that note when building.
+- If it reports `queue empty`, say nothing about it in the brief. Silence is the
+  normal case.
+
 ## STEP 1 — Search
 
 Run all three layers below IN PARALLEL. They catch different things — breadth is the point, and no single layer is "primary." A dry result from one is normal; the others cover it.
@@ -81,6 +135,8 @@ Merge all three, dedupe, freshness-sort (hours-old first). If the karma table is
 - **Morning run:** the remaining query blocks, then link verification and delivery. Verification-heavy. Re-run the poller plus a short location-first freshness pass to catch anything posted overnight.
 
 Both runs increment query run counters. Breadth is the point — if something has to give, cut result *depth* (numResults) or move a block to the other run, never the query count.
+
+**Write every score change to the query's inline row in the SAME edit as the run-log entry — the row is the source of truth, the log is history.** A score that exists only in a dated run-log paragraph is invisible to the next sweep, because the next sweep selects queries by reading the rows, not by reading the log. This has now happened twice: on 2026-10-22 two queries were logged as changed and their rows were left untouched, and the 2026-10-23 sweep had to detect the drift and repair them before it could rank anything. The order that prevents it: **edit the rows first, append the log second, and have the log quote the new row value** so the two can be diffed later. If a run-log entry says a score moved, a `grep` of that query's row must show the new number before the sweep writes anything else.
 
 ## STEP 2 — Post-filter
 
@@ -214,3 +270,20 @@ The poller is ONE of the three search layers (STEP 1, layer A), not a replacemen
 - `poll_boards.py --add "<careers URL>"` registers a new company found via web search so it self-polls next time.
 
 Layer A gives structured, real-time coverage of the boards you already track. It does NOT see companies outside the registry — that's what the broad + location-first web searches in STEP 1 layer B are for. Run both; freshness-sort together.
+
+
+## STEP 99 — Rebuild the dashboard (LAST STEP, AFTER THE BRIEF IS WRITTEN)
+
+```bash
+python3 tools/brief_site/build_site.py
+```
+
+Re-parses `brief-*.md`, `applied.md` and `ghost.md` into the JSON the dashboard
+serves, so tonight's leads appear on the user's Today tab with working apply links
+and checkboxes. The brief file must already be written -- this step reads it.
+
+Read-only against the workspace; it cannot damage a markdown file. It refuses to
+write when it finds no briefs, so a wrong `--root` errors instead of blanking data.
+
+If the user keeps the dashboard open, it picks the new data up on refresh.
+

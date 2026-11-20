@@ -7,6 +7,22 @@ description: Morning verification + delivery sweep. Verifies the apply links fro
 
 Light second-pass sweep. Read `<workspace>/profile.md` for context.
 
+## THE DASHBOARD IS THE DELIVERY SURFACE (read first)
+
+The brief is delivered through the local dashboard (`tools/brief_site`, served at
+http://127.0.0.1:8787 by `start-dashboard.bat` / `start-dashboard.sh`), not as a loose
+markdown file the user has to go find. Every run, without exception:
+
+1. **STEP 0.5** drains the dashboard's event queue before any searching.
+2. **STEP 6** writes the brief as `<workspace>/brief-YYYY-MM-DD-6am.md` with a
+   dashboard-parseable lead table (header spec in STEP 6 item 7).
+3. **STEP 99** rebuilds the site and confirms today's brief and leads actually landed.
+4. Every pointer to the user (brief footer, chat summary, push notification) sends them
+   to the dashboard's Today tab first; the markdown file is the archive behind it.
+
+A run that writes a brief but skips STEP 99, or writes it under a name the site does not
+ingest, has not delivered anything. If the build fails, say so in the notification.
+
 ## STEP 0 — Read before anything
 
 1. `<workspace>/applied.md`
@@ -14,9 +30,63 @@ Light second-pass sweep. Read `<workspace>/profile.md` for context.
 3. `<workspace>/pattern-signals.md` — read it back to yourself before any output.
 4. `<workspace>/boards.md` — note current karma + tiers (CORE/ROTATION/DORMANT/BLOCKED) + blocked domains.
 
+
+## STEP 0.4 — Drift check
+
+```bash
+python3 tools/drift_check.py --live
+```
+
+Optional: `drift_check.py` is a workspace-specific scanner for claims you have
+retired (old metrics, banned phrasings). If your workspace has no such file, skip
+this step.
+
+Exits non-zero when a live file still carries a claim an earlier ruling killed.
+Fix those before building anything, because the next resume will copy them forward.
+`applications/*` and the brief archive are history and are never rewritten.
+Unresolved conflicts live in `conflicts.md`; surface anything marked OPEN in the brief
+ONCE, then leave it alone until the user rules.
+
+## STEP 0.5 — Drain the dashboard queue (RUN THIS BEFORE SEARCHING)
+
+The user ticks checkboxes on the local dashboard (`tools/brief_site`). Those ticks
+are queued on disk, not applied live. Drain them first, because an "applied" tick
+changes the kill-check for this very run:
+
+```bash
+python3 tools/brief_site/drain_queue.py --root "$WORKSPACE"
+```
+
+- **Expect a backlog.** The computer gets shut off and runs get skipped. Events
+  queue until a sweep runs, so a drain covering several days is normal, not a bug.
+- It is **idempotent** -- safe to run twice, safe to re-run after a crash.
+- It appends applications to `applied.md` in the canonical format, and tasks and
+  notes to `dashboard-inbox.md`. **Read `dashboard-inbox.md` after draining** --
+  notes the user wrote are addressed to this run.
+- **`BUILD MATERIALS:` lines are the user asking for a folder.** The dashboard's
+  "Build materials please" button drains into `dashboard-inbox.md` as
+  `- BUILD MATERIALS: <lead> | <url> (requested ...)`. Treat every one not yet
+  handled as a top-priority build THIS run, whatever its rank: verify the link on
+  the employer's own surface, run the applied/ghost/scam check, then build
+  `applications/<slug>-YYYY-MM-DD/` (resume PDF, jd.md, apply-notes.md, plus any
+  free-text answer the form requires). Mark it `READY` in this run's brief table so
+  the button disappears. If the lead fails a check, do not build; say why in the
+  brief in one line. Freshness does not block a requested build: he chose it.
+- **Save every surfaced lead's JD (2026-11-19).** The dashboard's expanded
+  card shows the job description FIRST and the sweep's analysis under it. So for
+  every lead that lands in a brief table, save the posting body verbatim (pulled
+  from the employer API you already hit for liveness) to
+  `jds/<employer>-<role>-<YYYY-MM-DD>.md` with a short header (capture date, source
+  URL, employer posting date), and put that path in the row's Materials cell:
+  `NOT BUILT · JD saved: \`jds/<file>.md\``. A built folder's own `jd.md` is found
+  automatically from the `applications/<folder>/` path. A `BUILD MATERIALS` line may
+  carry `USER SAYS: ...`: follow that note when building.
+- If it reports `queue empty`, say nothing about it in the brief. Silence is the
+  normal case.
+
 ## STEP 1 — Pick up where nightly left off
 
-Read `<workspace>/nightly-leads-YYYY-MM-DD.md` and the day's `<workspace>/applications/` folders. Note the board-of-origin recorded in each `apply-notes.md`.
+Read `<workspace>/brief-YYYY-MM-DD-1am.md` (older installs: `nightly-leads-YYYY-MM-DD.md`) and the day's `<workspace>/applications/` folders. Note the board-of-origin recorded in each `apply-notes.md`.
 
 ## STEP 2 — Link verification (this skill's primary job)
 
@@ -62,7 +132,7 @@ Per-lead `applied.md` check: if a company appears in `applied.md`, remove it fro
 
 ## STEP 6 — Deliver the brief
 
-Write the final brief to `<workspace>/morning-brief-YYYY-MM-DD.md`. Structure:
+Write the final brief to `<workspace>/brief-YYYY-MM-DD-6am.md`. That exact pattern (`brief-` or `email-check-`, the date, then the run tag) is what `build_site.py` ingests; a file named `morning-brief-*.md` never reaches the dashboard. Structure:
 
 **1. Date header.**
 
@@ -92,11 +162,15 @@ One short paragraph, not a lecture. End with: "Take this in a separate Claude ch
 
 **6. TODOs from nightly.** Missing profile fields, broken renders, anything that needs the user's attention before they can ship.
 
-**7. Lead summary table.** One row per lead — company, role, comp, location, apply link, verified status.
+**7. Lead summary table.** One row per lead — company, role, comp, location, apply link, verified status. Use this header exactly, because the dashboard binds columns by header name:
+
+`| # | Lead | Comp | Location | Apply link | Age | Verified | Materials |`
+
+Put employer AND role in the single `Lead` cell ("Acme - Software Engineer, Platform"). Do not split them into `Employer` and `Role` columns (the parser drops `Role`), and do not use `Item` without a leading `#` column. Every row carries a full `https://` apply link (employer ATS first, careers URL if none). Put this table under a heading that reads exactly `## Links and materials status`, with the table starting on the very next non-blank line: any prose line between the heading and the table ends the parser's table mode and every lead is silently dropped (this happened on the first 6am run that followed this rule). Prose goes after the table. A row containing the word KILLED is screened out of the dashboard by design, so killed items belong in the kill list below, not in this table.
 
 **8. Lead writeups.** Each lead's full paragraph from `nightly` (verbatim per STEP 4 above). Do not condense. The paragraph IS the value.
 
-**9. Footer.** Closing line pointing the user to past briefs: "Past briefs are saved as `morning-brief-YYYY-MM-DD.md` in your workspace folder — open it in any file browser to revisit prior days." Useful when they miss a day, want to check back on a lead they meant to apply to, or look up something from last week.
+**9. Footer.** Closing line pointing the user to the dashboard: "Today's leads are on the dashboard's Today tab (http://127.0.0.1:8787, or double-click `start-dashboard.bat`). Tick what you apply to there; past briefs live under the Briefs tab." The push notification ends with the same pointer.
 
 The brief is what the user wakes up to. It is the user-facing artifact for the day. Clean prose, signal-rich paragraphs, honest about confidence, occasionally encouraging but never saccharine.
 ---
@@ -116,3 +190,30 @@ The nightly sweep is discovery-heavy; the morning sweep is verification-heavy. B
    - Their returns have not been checked against `applied.md` / `ghost.md` — run the kill check yourself before anything reaches the brief.
    - If query volume falls short, name the resource that actually ran out (context window, rate limit, or token budget — they are different problems) rather than reporting a generic capacity limit.
 3. Merge with nightly's leads, dedupe, freshness-sort (hours-old first), then per-lead applied/ghost kill-check + scam-screen + ethics + rank.
+
+
+## STEP 99 — Publish to the dashboard (MANDATORY, LAST STEP, AFTER THE BRIEF IS WRITTEN)
+
+```bash
+python3 tools/brief_site/build_site.py
+python3 tools/brief_site/build_events.py
+```
+
+`build_site.py` feeds Today/Leads/Briefs; `build_events.py` feeds the calendar from `events.md`. Run both. Any dated item the brief tells the user about (an info session, a deadline, a booked screen) must also be appended to `events.md` under a `## YYYY-MM-DD` heading and a `### One-liners` subheading, as `- Title | Thu Nov 19, 3-4 PM | where | cost | NEW - description`, or it will be in the brief text but missing from the calendar.
+
+Re-parses `brief-*.md`, `applied.md` and `ghost.md` into the JSON the dashboard
+serves, so tonight's leads appear on the user's Today tab with working apply links
+and checkboxes. The brief file must already be written -- this step reads it.
+
+Read-only against the workspace; it cannot damage a markdown file. It refuses to
+write when it finds no briefs, so a wrong `--root` errors instead of blanking data.
+
+If the user keeps the dashboard open, it picks the new data up on refresh.
+
+**Verify the publish, do not assume it.** After the build, confirm that today's
+`brief-YYYY-MM-DD-6am.md` was parsed and that its leads appear in the generated data
+(grep the built JSON for one of today's apply URLs). If the build errors, refuses to
+write, or today's leads are missing, fix the brief's table header and rebuild once; if it
+still fails, the push notification says "brief written, dashboard NOT updated" with the
+reason, so the user does not open a stale Today tab.
+

@@ -201,3 +201,135 @@ class TestLocation(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
+
+class TestNonSoftwareDisciplines(unittest.TestCase):
+    """2026-10-23. TECH matches 'engineer' broadly, so Motorola's hardware reqs were
+    classifying as junior software and filling the top bucket of the brief."""
+
+    def test_hardware_disciplines_are_dropped(self):
+        for t in ("Entry Level Mechanical Engineer",
+                  "Entry Level RF Design Engineer",
+                  "Entry Level Power Electronics and Analog Design Engineer",
+                  "Entry Level Control Hardware Development Engineer",
+                  "Mechanical Engineering Intern - Summer 2027",
+                  "Field Service Engineer - US Remote",
+                  "Junior Civil Engineer",
+                  "Associate Manufacturing Engineer",
+                  "Biomedical Engineering Technician"):
+            self.assertIsNone(pb.classify(t), t)
+
+    def test_software_titles_are_untouched(self):
+        for t in ("Software Engineer I", "Junior Systems Engineer",
+                  "Associate Platform Engineer", "Entry Level Data Engineer",
+                  "Junior QA Engineer", "Associate Network Engineer",
+                  "New Grad Software Engineer", "Junior Security Engineer",
+                  "Associate Site Reliability Engineer",
+                  "Entry Level Forward Deployed Engineer"):
+            self.assertIsNotNone(pb.classify(t), t)
+
+
+class TestPostedLabel(unittest.TestCase):
+    """2026-10-23. raw[:10] printed Workday's 'Posted Yesterday' as 'Posted Yes'."""
+
+    def test_iso_is_sliced_to_the_date(self):
+        self.assertEqual(pb._posted_label("2026-10-23T08:16:27+00:00"), "2026-10-23")
+        self.assertEqual(pb._posted_label("2026-10-23"), "2026-10-23")
+
+    def test_relative_phrases_survive_intact(self):
+        self.assertEqual(pb._posted_label("Posted Yesterday"), "Posted Yesterday")
+        self.assertEqual(pb._posted_label("Posted Today"), "Posted Today")
+        self.assertEqual(pb._posted_label("Posted 30+ Days Ago"), "Posted 30+ Days Ago")
+
+    def test_blank_is_labelled_not_blank(self):
+        self.assertEqual(pb._posted_label(""), "unknown")
+        self.assertEqual(pb._posted_label(None), "unknown")
+
+
+class TestGreenhouseToken(unittest.TestCase):
+    """2026-10-23. The oldmissioncapital row carried only source_url and raised a bare
+    KeyError: 'token' on every run from 2026-09-15 onward."""
+
+    def test_explicit_token_wins(self):
+        self.assertEqual(pb._gh_token({"token": "acme"}), "acme")
+
+    def test_derived_from_boards_api_source_url(self):
+        e = {"source_url": "https://boards-api.greenhouse.io/v1/boards/oldmissioncapital/jobs"}
+        self.assertEqual(pb._gh_token(e), "oldmissioncapital")
+
+    def test_derived_from_job_boards_url(self):
+        self.assertEqual(pb._gh_token({"source_url": "https://job-boards.greenhouse.io/stripe"}),
+                         "stripe")
+
+    def test_unparseable_raises_a_useful_message(self):
+        with self.assertRaises(KeyError) as cm:
+            pb._gh_token({"company": "Old Mission"})
+        self.assertIn("source_url", str(cm.exception))
+
+
+class TestThrottleKey(unittest.TestCase):
+    """2026-10-23. Parallel across hosts, serialized within one host."""
+
+    def test_vendor_boards_share_one_host(self):
+        a = pb._throttle_key({"ats": "greenhouse", "token": "a"})
+        b = pb._throttle_key({"ats": "greenhouse", "token": "b"})
+        self.assertEqual(a, b)
+        self.assertEqual(a, "boards-api.greenhouse.io")
+
+    def test_distinct_vendors_do_not_contend(self):
+        self.assertNotEqual(pb._throttle_key({"ats": "greenhouse", "token": "a"}),
+                            pb._throttle_key({"ats": "ashby", "org": "a"}))
+
+    def test_per_tenant_hosts_key_on_hostname(self):
+        e = {"ats": "workday", "host": "acme.wd5.myworkdayjobs.com"}
+        self.assertEqual(pb._throttle_key(e), "acme.wd5.myworkdayjobs.com")
+
+    def test_falls_back_to_source_url_netloc(self):
+        e = {"ats": "raw", "source_url": "https://careers.example.com/jobs"}
+        self.assertEqual(pb._throttle_key(e), "careers.example.com")
+
+
+class TestFetchAllResilience(unittest.TestCase):
+    """A board that fails must not take the run down with it."""
+
+    def setUp(self):
+        self._orig = dict(pb.FETCHERS)
+
+    def tearDown(self):
+        pb.FETCHERS.clear()
+        pb.FETCHERS.update(self._orig)
+
+    def test_one_bad_board_does_not_stop_the_others(self):
+        def good(e):
+            return [{"id": "1", "title": "Software Engineer I", "location": "Chicago, IL",
+                     "url": "u", "posted": "2026-10-23"}]
+
+        def bad(e):
+            raise RuntimeError("boom")
+
+        pb.FETCHERS["t_good"], pb.FETCHERS["t_bad"] = good, bad
+        reg = {"boards": {"g1": {"ats": "t_good"}, "b1": {"ats": "t_bad"},
+                          "g2": {"ats": "t_good"}}}
+        results, errs = pb._fetch_all(reg)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(len(errs), 1)
+        self.assertIn("boom", errs[0][1])
+
+    def test_skip_and_excludes_are_honoured(self):
+        pb.FETCHERS["t_good"] = lambda e: []
+        reg = {"excludes": ["noisy"],
+               "boards": {"keep": {"ats": "t_good"},
+                          "skipme": {"ats": "t_good", "skip": True},
+                          "noisycorp": {"ats": "t_good"}}}
+        results, errs = pb._fetch_all(reg)
+        self.assertEqual([r[0] for r in results], ["keep"])
+        self.assertEqual(errs, [])
+
+    def test_unsupported_ats_is_an_error_not_a_crash(self):
+        reg = {"boards": {"weird": {"ats": "nope"}}}
+        results, errs = pb._fetch_all(reg)
+        self.assertEqual(results, [])
+        self.assertIn("unsupported ats", errs[0][1])
+
+
+if __name__ == "__main__":
+    unittest.main()

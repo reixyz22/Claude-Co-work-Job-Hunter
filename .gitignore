@@ -42,3 +42,11 @@ tools/board_poller/names_*.txt
 tools/board_poller/batch2_resolve.txt
 tools/board_poller/*.bak
 tools/board_poller/*.bak-*
+
+# brief_site (dashboard) runtime state and personal config
+tools/brief_site/config.json
+tools/brief_site/state/
+tools/brief_site/data/
+tools/brief_site/*.bak*
+tools/brief_site/static/*.bak*
+skills/**/*.bak*

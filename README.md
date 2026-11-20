@@ -50,7 +50,7 @@ This plugin generates AI-written drafts. AI hallucinates. Resume tailorings and 
    - Companies or industries to filter out (ethics seed)
 3. Confirm the scheduled tasks (default 1am + 6am local time, plus a 1pm inbox pass if you connect an email account, and an optional twice-weekly event sweep).
 4. Optionally do a dry-run preview.
-5. Tomorrow morning, read `morning-brief-YYYY-MM-DD.md` in your workspace.
+5. Tomorrow morning, open the dashboard (see [The dashboard](#the-dashboard)) or read `brief-YYYY-MM-DD-6am.md` in your workspace.
 6. Tell Claude when you apply to a role and when you spot a scam — in your own words, no special syntax. The system depends on this; see "You're a participant" below.
 
 Setup takes about ten minutes.
@@ -106,6 +106,39 @@ Five minutes of feedback per week is enough.
 - Frequency-tallied skill-gap log with concrete study paths (CodePath, Advent of Code, LeetCode, project ideas with expansion routes, language and Linux resources)
 - A `CLAUDE.md` template seeded with battle-tested job-hunt rules (resume tightness, JD-quote-verbatim, provenance tiers, flex-skill strategy, recruiter-direct outreach play, scam patterns)
 - Autonomous mornings — fresh leads ready when you wake up
+- A local dashboard: today's short list, every lead with its job description, one-tap kill and build buttons, a calendar of events, and a points/streak tracker. See below
+
+## The dashboard
+
+![Today tab](docs/screenshots/today.png)
+
+A local web page that is where the briefs actually get read. Python standard library only: no pip, no node, no build step. It binds to `127.0.0.1`, so nothing is exposed off your machine. The screenshots here use mock data.
+
+```
+python3 tools/brief_site/serve.py          # http://127.0.0.1:8787
+```
+
+On Windows, double-click `tools/brief_site/install-autostart.bat` once and it starts hidden every time you log in (`remove-autostart.bat` undoes it). The server also restarts itself when its own code changes, so a plugin update never leaves a stale server answering a newer page.
+
+**Today** caps the list at a few items you choose with a load dial (Easy / Normal / Catch-up / Everything), deduped by company, freshest first, and never shows a lead past the freshness cutoff. Progress, a streak and low-effort "freebie" tasks sit next to it on purpose: a bad day should still end with something ticked.
+
+**Leads** expand to show the job description first, saved verbatim from the employer's own posting, with the sweep's analysis as a separate section under it.
+
+![Expanded lead: JD first, sweep notes under it](docs/screenshots/lead-expanded.png)
+
+Every card has three quiet kill buttons (**Red** permanent, **Yellow** three months, **Dead link**) and, when no materials exist yet, **Build materials please**, with an optional note for the build:
+
+![Build materials with a note](docs/screenshots/build-materials.png)
+
+If the [Claude Code](https://code.claude.com/docs/en/setup) CLI is on your PATH, that button builds the folder **right now**: it starts an unattended `claude -p` run in your workspace with a restricted tool list, your `CLAUDE.md` rules load automatically, and the card flips from "Building now" to "materials ready" when the files land. Resume PDFs need a LaTeX compiler on the same machine (MiKTeX on Windows: `winget install -e --id MiKTeX.MiKTeX`, then `initexmf --set-config-value [MPM]AutoInstall=1` so missing-package prompts can't stall an unattended run). Without the CLI, or if a build fails, the request simply waits for the next scheduled sweep. The build never applies or submits anything.
+
+**Calendar** shows events from the event finder, your own pins, and a dot for every day you got something done.
+
+![Calendar](docs/screenshots/calendar.png)
+
+**How the clicks reach the pipeline.** The web server never writes your markdown files. Every click appends one fsync'd line to `state/events.jsonl`; the next sweep runs `drain_queue.py`, which writes applications into `applied.md`, kills into `ghost.md`, and notes and build requests into `dashboard-inbox.md`. Draining is idempotent, so a skipped run or a shut-down laptop costs latency and nothing else. Full design notes in [`tools/brief_site/README.md`](tools/brief_site/README.md).
+
+Personal settings (your name for the greeting, companies to deprioritize, preset kill reasons, a line of context for the ask bar) go in `tools/brief_site/config.json`, which is gitignored. Copy `config.example.json` to start.
 
 ## Scheduled runs
 
@@ -137,11 +170,14 @@ If a sweep under-delivers on query count, it should name which resource actually
 ├── pattern-signals.md             # what you engage with vs. ignore
 ├── posting-freshness.md           # timestamp log
 ├── skills-to-learn.md             # tallied gaps + study paths
-├── nightly-leads-YYYY-MM-DD.md    # overnight research handoff
-├── morning-brief-YYYY-MM-DD.md    # daily output
+├── brief-YYYY-MM-DD-1am.md        # overnight research handoff
+├── brief-YYYY-MM-DD-6am.md        # daily output (the dashboard reads these)
+├── dashboard-inbox.md             # notes and build requests from the dashboard
+├── jds/                           # saved job descriptions for every surfaced lead
 ├── email-check-YYYY-MM-DD-1pm.md  # midday inbox pass (if email connected)
 ├── events.md                      # in-person event log, kills included (event-finder)
 └── applications/<slug>-YYYY-MM-DD/
+    ├── jd.md
     ├── apply-notes.md
     ├── outreach-draft.md
     └── resume.pdf (+ source)
@@ -158,6 +194,8 @@ If a sweep under-delivers on query count, it should name which resource actually
 | `event-finder`  | Auto, twice weekly   | **WIP** — in-person events ranked by who is in the room: hiring events, user groups, hackathons |
 
 ## Changelog
+
+**0.3.4** — Added **the dashboard** (`tools/brief_site`): a local, stdlib-only web front end for the briefs with a Today list, expandable leads, calendar, study and points tabs, and an append-only event log that the sweeps drain, so clicks survive a closed laptop and skipped runs. Expanded leads now show the **job description first** and the sweep's notes under it; both sweeps save a JD file for every lead they surface. New **Build materials** button with an optional note: with the Claude Code CLI installed it builds the application folder immediately on your machine, otherwise the next sweep builds it first. Red / Yellow / Dead-link kill buttons write to `ghost.md` through the same queue. Windows autostart (`install-autostart.bat`) and a self-restarting server. Fixed a parser bug that marked every "NOT BUILT" lead as ready, and the morning brief is now written as `brief-YYYY-MM-DD-6am.md` with a fixed table header so the dashboard always picks it up.
 
 **0.3.3** — Added a **Rippling ATS adapter** to `board_poller`. Rippling was an unrecognized vendor, so `--add` rejected its URLs outright and every Rippling-hosted employer was unpollable by construction, which is a harder failure than the usual "nobody registered it yet." It is not a niche vendor either: three employers already in one user's own application history run on it. The public board endpoint takes no auth and returns a flat array the poller already knows how to normalize. One caveat is documented and asserted in a test: Rippling ships **no posting date**, so `posted` stays empty and age can only come from the seen-diff. A test fails if a future change starts inventing one, since a fabricated age would promote dead reqs straight to the top under freshness-first ranking. Suite is 18 → 22 tests.
 

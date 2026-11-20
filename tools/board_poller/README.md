@@ -138,9 +138,39 @@ Paths can be overridden with `BOARD_REGISTRY`, `BOARD_SEEN`, `BOARD_OUT` and
 
 ## Being a good citizen
 
-There is a 1.5s delay between requests and a descriptive User-Agent. These are public
-endpoints that the companies' own career pages call, but do not hammer them — a few runs
-a day is plenty, and more would not surface anything sooner.
+Requests carry a descriptive User-Agent, and each **host** is called serially with a
+`HOST_DELAY` gap (default 0.4s) between its requests. Different hosts are polled
+concurrently. These are public endpoints that the companies' own career pages call, but
+do not hammer them — a few runs a day is plenty, and more would not surface anything
+sooner.
+
+### Why it is parallel (reworked 2026-10-23)
+
+The original model slept 1.5s after *every* board, serially. That was fine at 20 boards
+and fatal at 79: 1.5s x 77 eligible boards is ~118s of pure sleeping before a single byte
+of network time, which put a clean run permanently past the 120s shell timeout the
+scheduled sweeps invoke this tool through. The poller had stopped being able to finish at
+all — two sweeps (2026-10-14 and 2026-10-23) recorded it as an execution failure, and the
+2026-10-23 sweep reported it as the instrument "failing to run as well as failing to
+produce."
+
+The registry spans only a handful of vendor API hosts (35 Greenhouse boards share
+`boards-api.greenhouse.io`, 23 Ashby boards share `api.ashbyhq.com`), so the correct
+politeness unit is the host, not the run. Boards now fetch through a thread pool that
+serializes per host and runs hosts in parallel. **Measured: 27s for 77 boards, down from
+a run that could not complete.**
+
+| Flag | Env | Default | What it does |
+|---|---|---|---|
+| `--workers N` | `BOARD_WORKERS` | 8 | Concurrent fetch workers |
+| `--budget SEC` | `BOARD_BUDGET` | 90 | Wall-clock ceiling on the fetch phase |
+| — | `BOARD_HOST_DELAY` | 0.4 | Seconds between calls to the *same* host |
+
+`--budget` is a guard against the same failure returning as the registry grows. Boards
+that have not returned by the deadline are cancelled and reported as timeout errors, and
+the run still writes its outputs — **partial results beat being killed and writing
+nothing.** If timeout errors start appearing, that is the signal to raise `--workers` or
+split the registry, not to raise the budget past the caller's own limit.
 
 ## Rippling (added 2026-09-12)
 

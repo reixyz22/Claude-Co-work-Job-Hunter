@@ -1,0 +1,33 @@
+{
+  "_comment": "Copy to config.json (gitignored) and edit. build_site.py and serve.py read config.json, falling back to this file.",
+  "user_name": "",
+  "user_context": "",
+  "_user_context_comment": "One line the ask-bar assistant should always know, e.g. 'Based in Chicago, transit only, no car.'",
+  "claude_cli": "claude",
+  "deprioritized_companies": [
+    {
+      "match": "examplecorp",
+      "reason": "Applied to several reqs here with no response. Not dead, just ranks last until something changes.",
+      "since": "2026-01-01"
+    }
+  ],
+  "_kill_reasons_comment": "Preset reasons for the RED / YELLOW buttons on a lead card. Hand-editable, no code change needed. There is always a free-text box as well. RED is permanent in ghost.md and never comes off, so keep these to real ethics/scam categories. YELLOW parks the company for three months.",
+  "kill_reasons": {
+    "red": [
+      "Military or defense contractor",
+      "Gambling, sportsbook or daily fantasy",
+      "TRAP contract / training-academy model",
+      "Staffing mill, bench-and-place",
+      "Scam or fabricated listing",
+      "Surveillance or policing tech"
+    ],
+    "yellow": [
+      "Req is filled or closed",
+      "Experience gate I can't clear",
+      "Location doesn't work",
+      "Comp too low",
+      "Not interested in this kind of work",
+      "Posting is stale"
+    ]
+  }
+}

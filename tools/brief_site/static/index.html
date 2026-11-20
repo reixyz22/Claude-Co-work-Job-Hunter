@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Job Hunter</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2317150f'/><path d='M9 22.5c2.2 1.6 6.2 1.6 7.6-1.4V9.5' fill='none' stroke='%23f2b43a' stroke-width='3.2' stroke-linecap='round'/><circle cx='22.5' cy='10' r='2.4' fill='%23f2b43a'/></svg>">
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand" aria-label="Job Hunter">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 22.5c2.2 1.6 6.2 1.6 7.6-1.4V9.5"/><circle cx="22.5" cy="10" r="2.4"/></svg></span>
+      <span class="brand-txt">Job Hunter<small id="brandsub">loading…</small></span>
+    </div>
+
+    <form class="ask" id="ask" autocomplete="off" role="search">
+      <svg class="ask-ico" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h9M10 6l4 4-4 4"/></svg>
+      <input id="askq" name="q" placeholder="Ask anything · pin agent fair dec 15 6pm · log got 2 refs"
+             aria-label="Ask the dashboard, pin to the calendar, or log something you did">
+      <kbd class="ask-kbd" aria-hidden="true">/</kbd>
+      <span class="ask-engine" id="askeng" title="Which model answers questions"></span>
+    </form>
+
+    <div class="top-right">
+      <div class="score" id="score"></div>
+      <button class="iconbtn" id="theme" title="Light / dark" aria-label="Toggle light or dark theme">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.2"/><path d="M10 3.8a6.2 6.2 0 0 0 0 12.4z" class="fill"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="thread" id="thread" hidden></div>
+  <nav class="tabs" id="tabs" aria-label="Sections"></nav>
+</header>
+
+<main class="wrap" id="view"></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
